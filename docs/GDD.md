@@ -7,14 +7,27 @@
 
 ---
 
-## 1. Vision & Cadrage du Projet
+## 1. Vision, Identité & Cadrage du Projet
 
 L'objectif est de réaliser un jeu d'action-aventure 3D hommage aux premiers *The Legend of Zelda*, avec un rendu rétro chaleureux, une excellente gestion de la lumière et un game feel soigné et fluide, tout en garantissant une réalisation maîtrisée avant la date limite du concours.
 
-### Piliers de Conception
+### 1.1 Identité & Originalité (Cible : Prix du Jury & Prix le plus original)
+* **Nom de code & Titre du Jeu :** `Lezda` est le nom de code interne du dépôt de développement. Pour respecter strictement les règles d'originalité du concours (Article 5.1 du règlement) et éviter tout litige avec Nintendo, **un titre 100 % original**, ainsi que des noms de lieux et de personnages originaux, seront adoptés et officialisés.
+* **Recherche d'une Mécanique Originale (Le « Twist Rétro ») :** 
+  * Au-delà de l'hommage rétro classique (exploration / épée / clés / boss), le jeu intégrera une mécanique distinctive propre pour surprendre le jury (ex. manipulation de la lumière/ombres, relique temporelle rétro, alter-ego spectral, etc.).
+  * Cette mécanique sera introduite ou expérimentée dès la plaine ou le premier sanctuaire sans surcharger le socle initial.
+
+### 1.2 Piliers de Conception
 * **Game Feel & Plaisir Immédiat :** Avant de créer des dizaines de salles, le simple fait de se déplacer dans la zone de base, de trancher des buissons et de manier son épée doit être dynamique, propre et satisfaisant à 60 FPS.
-* **Vertical Slice itérative :** Chaque étape produit une brique jouable, stable et vérifiable.
-* **Rétrogaming 3D élégant :** Esthétique low-poly, textures pixel-art nettes (`Texture.NEAREST_SAMPLINGMODE`), éclairages colorés et contrastés, audio chiptune réactif.
+* **Scène 3D Unique Continue (Monde d'un seul tenant) :**
+  * L'ensemble du jeu (plaine extérieure, caverne, sanctuaire et arène du boss) coexiste au sein d'**une seule et même scène Babylon.js**.
+  * Les salles intérieures sont disposées aux abords de la plaine, reliées par des couloirs de transition naturels.
+  * **Avantages majeurs :** Zéro écran de chargement, zéro destruction/recréation lourde (`scene.dispose()`), gestion de mémoire constante, transition ultra-fluide.
+* **UI Ultra-Légère en Overlay HTML/CSS Pur :**
+  * Superposée directement au `<canvas>` 3D.
+  * Pas d'embarquement de `@babylonjs/gui` (~1.5 Mo économisés sur le bundle).
+  * Textures pixel-art nettes (`image-rendering: pixelated`), typographie rétro lisible et responsive natif.
+  * **Immersion Console : Pas de bouton plein écran visible**, afin de préserver l'authenticité de l'écran rétro sans boutons modernes parasites (le canvas s'adapte élégamment à la fenêtre du navigateur ; la touche standard `F11` reste disponible si le joueur souhaite le plein écran).
 * **Conformité stricte :** 100 % en français, 100 % Babylon.js, zéro dépendance non libre, zéro élément sous copyright.
 
 ---
@@ -84,7 +97,35 @@ L'objectif est de réaliser un jeu d'action-aventure 3D hommage aux premiers *Th
 
 ---
 
-## 3. Plan Complet & Détaillé : La Plaine de Base (Hub Central)
+## 3. Flux des Menus, Audio & Gestion de la Défaite
+
+```mermaid
+stateDiagram-v2
+    [*] --> EcranTitre: Chargement de la page
+    EcranTitre --> EnJeu: Clic sur « Commencer l'aventure » (Débloque l'AudioContext)
+    EnJeu --> Pause: Touche Échap ou P (Fige deltaTime)
+    Pause --> EnJeu: « Reprendre » ou Échap
+    Pause --> EcranTitre: « Menu Principal »
+    EnJeu --> Defaite: Vie = 0 (3 cœurs perdus)
+    Defaite --> EnJeu: Respawn immédiat au Spawn avec 3 cœurs (sans reload)
+    EnJeu --> SauvegardeLocale: Portes ouvertes / Clés ramassées (localStorage)
+```
+
+1. **Écran Titre (Menu Principal Rétro) :**
+   * **Nécessité technique :** Débloque l'`AudioContext` conformément aux restrictions des navigateurs (Chrome/Safari interdisent l'audio avant interaction).
+   * Contenu : Titre du jeu, bouton « Commencer l'aventure », panneau de rappel des « Commandes », bascule « Son : Activé / Désactivé ».
+2. **Menu Pause (Touche `Échap` ou `P`) :**
+   * Met instantanément en pause la boucle logique (`deltaTime = 0`).
+   * Propose « Reprendre », « Commandes », « Réinitialiser », réglage sonore.
+3. **Gestion de la Défaite (Game Over & Respawn) :**
+   * Lorsque les cœurs tombent à 0 : petite animation de chute du héros, son de défaite rétro, fondu au noir court (~1s).
+   * **Réapparition immédiate au point d'apparition de la plaine** avec la barre de vie restaurée (3 cœurs). Zéro rechargement lourd de la page web.
+4. **Sauvegarde Légère de Sécurité (`localStorage`) :**
+   * Mémorisation discrète de l'état de progression (portes déverrouillées, clés en poche) pour ne rien perdre en cas de rafraîchissement accidentel (`F5`).
+
+---
+
+## 4. Plan Complet & Détaillé : La Plaine de Base (Hub Central)
 
 Afin de garantir une qualité irréprochable et un game feel optimal, le développement initial se concentre **exclusivement sur la réalisation complète et soignée de la Plaine d'Éveil**. Tout doit y être propre, fluide, beau et conforme aux meilleures pratiques Babylon.js avant d'attaquer les donjons.
 
@@ -100,19 +141,19 @@ Afin de garantir une qualité irréprochable et un game feel optimal, le dévelo
 ---
 
 ### Phase 1 : Socle Technique, Moteur & Architecture Propre
-* **Objectif :** Poser les bases du code, le pipeline de build et la boucle de rendu sans dette technique.
+* **Objectif :** Poser les bases du code, le pipeline de build Vite et la scène 3D unique continue sans dette technique.
 * **Actions :**
   * Initialisation de Vite avec template standard (HTML5 / ES Modules).
-  * Installation ciblée de `@babylonjs/core` (et `@babylonjs/gui` si besoin pour le HUD).
+  * Installation ciblée de `@babylonjs/core` (UI gérée en overlay HTML/CSS sans librairie superflue).
   * Structure du code modulaire dans `src/` :
     * `src/main.js` : Bootstrap, gestion du canvas, cycle de vie.
-    * `src/core/` : `GameManager`, `InputManager`, `AudioManager`.
+    * `src/core/` : `GameManager`, `InputManager`, `AudioManager`, `SaveManager` (`localStorage`).
     * `src/rendering/` : `CameraManager`, `LightingManager`.
     * `src/world/` : `LevelManager`, `EnvironmentManager`.
     * `src/entities/` : `Player`, `Weapon`, `Props`.
-    * `src/ui/` : `HUD`, `DialogueBox`.
+    * `src/ui/` : `UIManager` (overlay HTML/CSS : HUD, menus, dialogues).
   * Boucle de jeu robuste découplée du framerate via `deltaTime` plafonné (`Math.min(dt, 0.05)`).
-  * Canvas plein écran avec redimensionnement dynamique réactif (`engine.resize()`).
+  * Canvas plein écran adaptatif avec redimensionnement dynamique réactif (`engine.resize()`).
   * Compteur de performances discret (FPS et temps de frame) visible uniquement en mode développement (`import.meta.env.DEV`).
 
 ---
@@ -182,7 +223,7 @@ Afin de garantir une qualité irréprochable et un game feel optimal, le dévelo
 ---
 
 ### Phase 6 : Les 3 Passages & Panneau d'Information
-* **Objectif :** Poser les points d'ancrage clairs vers le reste du monde.
+* **Objectif :** Poser les points d'ancrage clairs vers le reste du monde sur la scène continue.
 * **Actions :**
   * **Chemin 1 (Est) — La Voie Ouverte :**
     * Arche naturelle taillée dans la roche ou entrée de caverne invitant à l'exploration.
@@ -214,18 +255,20 @@ Afin de garantir une qualité irréprochable et un game feel optimal, le dévelo
 
 ---
 
-### Phase 8 : Interface Utilisateur (HUD) & Menus Rétro
-* **Objectif :** Fournir toutes les informations vitales en français sans encombrer l'écran.
+### Phase 8 : Interface Utilisateur (HUD) & Menus Rétro (HTML/CSS Overlay)
+* **Objectif :** Intégrer les menus et le HUD en français dans un overlay léger et net.
 * **Actions :**
+  * **Écran Titre Intégré :**
+    * Écran d'accueil rétro débloquant l'audio au clic sur « Commencer l'aventure ».
   * **HUD Supérieur :**
     * Indicateur de vie sous forme de 3 cœurs rouges rétro (pleins, demi-cœurs ou vides).
     * Zone d'inventaire minimaliste : icône de *Clé simple* (grisée si absente, dorée si possédée) et icône de *Clé du Boss*.
-  * **Système de Notifications / Dialogue :**
+  * **Boîte de Dialogue & Notifications :**
     * Boîte de texte propre en bas de l'écran pour les panneaux et messages de portes.
     * Style parchemin rétro ou bandeau sombre bordé de pixel-art avec police lisible.
   * **Menu Pause & Aide :**
     * Accessible via la touche `Échap` ou `P`.
-    * Rappel complet des touches (clavier français ZQSD / QWERTY) et bouton de reprise.
+    * Rappel complet des touches (clavier français ZQSD / QWERTY) et reprise immédiate.
 
 ---
 
@@ -238,8 +281,9 @@ Afin de garantir une qualité irréprochable et un game feel optimal, le dévelo
     * Bruit sec de tranche pour les buissons.
     * Carillon de ramassage de cœur / objet.
     * Bruit sourd d'interaction sur une porte fermée.
+    * Jingle rétro de défaite / Game Over.
   * Nappe musicale d'ambiance rétro extérieure (mélodie douce et entraînante d'aventure).
-  * Bouton Muet / contrôle du volume facilement accessible.
+  * Bouton Muet / contrôle du volume accessible dans le menu.
 
 ---
 
@@ -249,21 +293,21 @@ Afin de garantir une qualité irréprochable et un game feel optimal, le dévelo
   * Profiling mémoire et framerate : 60 FPS inébranlables sur carte graphique intégrée.
   * Vérification de l'absence totale de fuites mémoire ou d'instanciations cachées.
   * Validation du game feel global (vitesse, portée de l'épée, lisibilité des lumières et de la caméra).
-  * Sauvegarde propre de l'état de la plaine (état des buissons coupés, objets ramassés).
+  * Test du flux complet : Écran Titre -> Plaine -> Buissons/Cœurs -> Pause -> Défaite/Respawn.
 
 ---
 
-## 4. Ce qui viendra ensuite (Après validation de la Plaine)
+## 5. Ce qui viendra ensuite (Après validation de la Plaine)
 
-Une fois la plaine de base validée et jugée parfaite en termes de maniabilité et d'esthétique, nous pourrons dérouler les étapes suivantes :
+Une fois la plaine de base validée et jugée parfaite en termes de maniabilité et d'esthétique, nous pourrons dérouler les étapes suivantes sur la même scène :
 1. **La Caverne du Gardien (Chemin 1) :** Première salle intérieure, IA des blobs/gelées, énigme d'interrupteur, obtention de la *Clé simple*.
 2. **Le Sanctuaire des Ruines (Chemin 2) :** Déverrouillage de la grille, combat contre le garde armé, énigme de positionnement, obtention de la *Clé du Boss*.
 3. **La Chambre du Boss (Chemin 3) :** Déverrouillage de la grande porte, combat contre *Le Golem Ancien de Rock*, victoire sans blocage du monde.
-4. **Extensions optionnelles :** Deuxième outil, énigmes bonus, boîte de dialogue narrative.
+4. **Intégration du Twist Rétro / Mécanique Originale :** Déploiement de la mécanique distinctive pour surprendre le jury.
 
 ---
 
-## 5. Notes sur la Flexibilité & les Évolutions Futures
+## 6. Notes sur la Flexibilité & les Évolutions Futures
 > Comme précisé en en-tête, **rien n'est figé**. Durant le développement de chaque phase de la plaine :
 > * Les paramètres (vitesse du joueur, taille de la plaine, forme des buissons, couleurs, intensité des lumières) seront ajustés à la volée selon nos impressions manette/clavier en main.
 > * Des mécaniques supplémentaires pourront être introduites ou simplifiées en fonction de ce qui sert le mieux le plaisir de jeu et les performances.
