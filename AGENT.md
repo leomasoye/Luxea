@@ -87,6 +87,8 @@ Le jury évalue les projets sur 4 axes principaux :
   * Ennemis aux patterns lisibles (patrouille, télégraphie d'attaque, vulnérabilité) + un mini-boss ou boss final mémorable.
 * **Énigmes Environnementales :** Interrupteurs au sol, blocs à pousser, braseros à allumer, ordre d'activation ou portes verrouillées.
 * **Ergonomie Clavier Français :** Supporter nativement **ZQSD (AZERTY)**, **WASD (QWERTY)** et les **flèches directionnelles** sans friction. Afficher clairement les touches dans le HUD / l'écran d'aide.
+* **Support Manette (Gamepad API) :** Prévoir le support optionnel des manettes via la Gamepad API du navigateur (détection automatique, mapping stick analogique + boutons). Le jury peut tester avec différents périphériques.
+* **Considération Tactile/Mobile :** Le jeu cible principalement le clavier, mais le rendu doit rester correct sur tablette/mobile (canvas responsive, pas de dépendance au hover). Un pad virtuel tactile est un bonus non prioritaire.
 
 ### 5.2 Esthétique 3D Rétro avec Babylon.js
 * **Géométrie Low-Poly :** Modèles anguleux et lisibles, inspirés de l'ère N64 / PS1 ou diorama moderne rétro (style *Link's Awakening* / *Tunic*).
@@ -94,6 +96,24 @@ Le jury évalue les projets sur 4 axes principaux :
 * **Éclairage & Ambiance :** Couleurs vives et contrastées pour la lisibilité du gameplay, léger brouillard de distance (`scene.fogMode`) façon console 32/64-bit, particules simples (carrés/sprites pixelisés pour la poussière, coups d'épée, explosions, cœurs).
 * **Post-Process Rétro (optionnel et désactivable) :** Effet de pixelisation légère, dithering ou filtre CRT subtil activable dans les options, sans jamais nuire à la lisibilité des textes.
 * **Audio Chiptune / Rétro :** Synthèse temps réel via **Web Audio API** ou effets sonores CC0 (coup d'épée, ouverture de coffre, résolution d'énigme, dégâts, musique d'ambiance bouclée) avec bouton Mute accessible en un clic.
+
+### 5.3 Mécanique Originale : La Lumière de l'Épée
+L'épée de Zalya est imprégnée d'une **énergie lumineuse ancienne**, constituant la mécanique centrale et distinctive du jeu (cible : Prix le plus original). Cette mécanique **doit être intégrée dès les fondations du code** et ne peut pas être ajoutée comme surcouche tardive.
+
+* **Fonctionnement :**
+  * **Mode Torche (maintien `Shift` ou clic droit) :** Zalya brandit son épée pour émettre une **aura lumineuse continue** (`PointLight` dynamique attachée à l'arme). Éclaire les zones sombres, révèle les éléments cachés, repousse certaines créatures d'ombre.
+  * **Frappe Lumineuse (attaque standard) :** Chaque coup d'épée projette un **flash de lumière** bref qui endommage et illumine la zone d'impact.
+  * **Jauge de Lumière (ressource limitée) :** L'énergie lumineuse se **consomme** dans l'obscurité et lors des attaques spéciales, et se **recharge** à la lumière naturelle (plaine extérieure, faisceaux de lumière dans les donjons, cristaux lumineux). Gérée visuellement dans le HUD.
+* **Interactions Gameplay :**
+  * Zones d'obscurité dans les donjons où la visibilité est réduite sans l'épée levée.
+  * Ennemis d'ombre : ne peuvent être touchés/affaiblis que sous l'effet de la lumière.
+  * Mécanismes anciens (cristaux réfracteurs, miroirs, dalles photosensibles) réagissant à la lumière de l'épée.
+  * Le boss Gallen manipule les ténèbres pour éteindre les sources de lumière et forcer Zalya à gérer sa jauge.
+* **Implémentation Babylon.js :**
+  * `PointLight` dynamique attachée au mesh de l'épée (portée et intensité variables selon la jauge).
+  * `GlowLayer` pour l'aura lumineuse rétro autour de la lame.
+  * `ShadowGenerator` ciblé pour projeter des ombres significatives depuis la lumière de l'épée.
+  * **Budget GPU strict :** une seule lumière dynamique pour l'épée, les autres sources restent statiques (`light.excludedMeshes` et bake d'éclairage si nécessaire).
 
 ---
 
@@ -127,8 +147,10 @@ Le jury évalue les projets sur 4 axes principaux :
   * Geler les matériaux et matrices statiques (`material.freeze()`, `mesh.freezeWorldMatrix()`).
   * Limiter le nombre de lumières dynamiques et de `ShadowGenerator` (ombres ciblées uniquement sur les entités clés ou blob shadows rétro très économiques).
   * Éviter les allocations d'objets (`new Vector3()`) dans la boucle `onBeforeRenderObservable` ; réutiliser des vecteurs temporaires.
-* **Gestion Mémoire :** Toujours nettoyer proprement (`dispose()`) les meshes, matériaux, textures, timers et observables lors d'un changement de scène ou d'un redémarrage de partie.
+* **Gestion Mémoire (Scène Unique) :** Dans l'architecture à scène unique, les zones inactives sont gérées par activation/désactivation (`mesh.setEnabled(false)`) et non par `scene.dispose()`. Nettoyer proprement (`dispose()`) les ressources temporaires (particules éphémères, timers, observables) lors d'un redémarrage de partie.
 * **Physique & Collisions :** Favoriser des collisions simples, prédictibles et nerveuses (colliders Babylon / bounding boxes / grille de tuiles ou plugin physique léger) plutôt qu'une simulation physique lourde et imprévisible.
+* **Navigation Ennemie :** Les ennemis doivent disposer d'un système de navigation basique (waypoints, grille de tuiles ou raycasts) pour éviter de se coincer dans les murs et garantir des patterns de mouvement lisibles et prévisibles par le joueur.
+* **Budget de Performance :** Si les 60 FPS ne sont pas tenus sur GPU intégré, désactiver par ordre de priorité : (1) post-process rétro (CRT, pixelisation), (2) `ShadowGenerator` → blob-shadows, (3) brouillard, (4) réduction de la résolution du canvas via `engine.setHardwareScalingLevel()`. **Ne jamais sacrifier la lisibilité du gameplay ni la lumière dynamique de l'épée** (mécanique centrale).
 * **Boucle Indépendante du Framerate :** Toujours multiplier les déplacements et timers par `deltaTime` (plafonné, ex. `Math.min(dt, 0.05)` pour éviter les sauts de collision lors d'un changement d'onglet).
 * **Débogage :** L'Inspector Babylon.js (`@babylonjs/inspector`) ne doit être chargé qu'en mode développement (`import.meta.env.DEV`) et **jamais embarqué dans le build de production** (poids du bundle).
 
@@ -140,7 +162,9 @@ Le jury évalue les projets sur 4 axes principaux :
 2. **Français par défaut pour le jeu et la doc :** Tout texte affiché à l'utilisateur final, tout document dans `docs/` et le `README.md` doivent être en français. *(Le code — noms de variables, fonctions, classes — peut rester en anglais standard par convention logicielle, avec des commentaires clairs).*
 3. **Gameplay jouable en priorité (Vertical Slice) :** Privilégier rapidement une boucle jouable complète (bouger → explorer → résoudre une énigme → combattre → gagner/perdre → rejouer) avant de multiplier les niveaux.
 4. **Ne jamais casser le build statique :** S'assurer que les chemins d'assets fonctionnent en déploiement sous sous-dossier (ex. GitHub Pages via chemins relatifs `./assets/...`) et pas uniquement sur `localhost`.
-5. **Contrôles & Accessibilité :** Toute nouvelle mécanique ajoutée doit fonctionner au clavier AZERTY et QWERTY, et être expliquée visuellement ou via l'écran d'aide en jeu.
+5. **Contrôles & Accessibilité :** Toute nouvelle mécanique ajoutée doit fonctionner au clavier AZERTY et QWERTY (et idéalement à la manette via Gamepad API), et être expliquée visuellement ou via l'écran d'aide en jeu.
 6. **Zéro asset fantôme :** Ne jamais référencer de fichiers `.glb`, `.png` ou `.mp3` inexistants sans créer un placeholder procédural Babylon.js fonctionnel permettant de tester immédiatement.
+7. **Priorité MVP :** Se référer à la section 6 du GDD (MVP Minimal & Jalons Intermédiaires) pour la priorisation. Toute fonctionnalité hors MVP est un bonus. En cas de doute sur la priorité d'une tâche, demander à l'utilisateur. Ne jamais travailler sur une fonctionnalité bonus si le MVP n'est pas encore atteint.
+8. **Lumière de l'épée = fondation :** Le système de lumière dynamique de l'épée (section 5.3) est la mécanique centrale. Il doit être implémenté dès la Phase 2 et testé en continu. Ne jamais implémenter une zone de jeu (donjon, ennemi, énigme) sans vérifier son interaction avec le système de lumière.
 
 ---
