@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Luxea — Concours Games on Web 2027</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0e14;
+      font-family: 'Courier New', 'Lucida Console', monospace, sans-serif;
+      color: #f0f4f8;
+    }
+
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+      touch-action: none;
+      image-rendering: pixelated;
+    }
+
+    /* UI Overlay Layer */
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* HUD Bar */
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 16px 24px;
+      text-shadow: 2px 2px 0px #000;
+    }
+
+    .hud-left {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Health Hearts */
+    .hearts-container {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .heart-icon {
+      width: 28px;
+      height: 28px;
+      background: #ff2a55;
+      display: inline-block;
+      clip-path: polygon(50% 10%, 65% 0%, 85% 0%, 100% 20%, 100% 50%, 50% 100%, 0% 50%, 0% 20%, 15% 0%, 35% 10%);
+      filter: drop-shadow(2px 2px 0px #2b000b);
+      transition: transform 0.15s ease;
+    }
+
+    .heart-icon.half {
+      background: linear-gradient(to right, #ff2a55 50%, #303742 50%);
+    }
+
+    .heart-icon.empty {
+      background: #252b36;
+    }
+
+    /* Light Gauge */
+    .light-gauge-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(10, 16, 26, 0.75);
+      border: 2px solid #5aa9e6;
+      border-radius: 4px;
+      padding: 4px 10px;
+      box-shadow: 0 0 10px rgba(90, 169, 230, 0.3);
+    }
+
+    .light-gauge-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffe066;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .light-bar-bg {
+      width: 130px;
+      height: 12px;
+      background: #141b25;
+      border: 1px solid #334e68;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .light-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #ffe066, #fff3b0, #ffffff);
+      box-shadow: 0 0 8px #ffe066;
+      transition: width 0.1s linear;
+    }
+
+    /* Keys Inventory */
+    .hud-right {
+      display: flex;
+      gap: 12px;
+      background: rgba(10, 16, 26, 0.75);
+      border: 2px solid #627d98;
+      border-radius: 4px;
+      padding: 6px 12px;
+    }
+
+    .key-slot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .key-icon {
+      font-size: 18px;
+      opacity: 0.25;
+      filter: grayscale(1);
+      transition: all 0.3s;
+    }
+
+    .key-icon.acquired {
+      opacity: 1;
+      filter: none;
+      transform: scale(1.1);
+      text-shadow: 0 0 8px #ffd700;
+    }
+
+    /* Floating Projected Interaction Prompt */
+    #interaction-prompt {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      background: rgba(12, 18, 28, 0.9);
+      border: 2px solid #ffe066;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: bold;
+      pointer-events: none;
+      display: none;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+      white-space: nowrap;
+    }
+
+    /* Dialogue & Message Box */
+    #dialogue-container {
+      width: 100%;
+      padding: 0 24px 24px 24px;
+      display: none;
+    }
+
+    .dialogue-box {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #101726;
+      border: 3px solid #f0b429;
+      border-radius: 6px;
+      padding: 16px 22px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8), inset 0 0 12px rgba(240, 180, 41, 0.15);
+      color: #f7fafc;
+      position: relative;
+    }
+
+    .dialogue-speaker {
+      color: #ffe066;
+      font-size: 14px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dialogue-text {
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 44px;
+    }
+
+    .dialogue-hint {
+      position: absolute;
+      right: 18px;
+      bottom: 10px;
+      font-size: 11px;
+      color: #9fb3c8;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { opacity: 0.5; }
+      to { opacity: 1; }
+    }
+
+    /* Modals & Fullscreen Overlays (Title, Pause, GameOver) */
+    .menu-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(7, 10, 17, 0.88);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      text-align: center;
+    }
+
+    .modal-card {
+      background: #101726;
+      border: 3px solid #5aa9e6;
+      border-radius: 8px;
+      padding: 32px 40px;
+      max-width: 540px;
+      width: 90%;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
+    }
+
+    .game-title {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: #ffe066;
+      text-shadow: 3px 3px 0 #b38600, 0 0 20px rgba(255, 224, 102, 0.4);
+      margin-bottom: 6px;
+    }
+
+    .game-subtitle {
+      font-size: 14px;
+      color: #829ab1;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .btn-retro {
+      display: inline-block;
+      width: 100%;
+      background: #2b6cb0;
+      border: 2px solid #63b3ed;
+      color: #ffffff;
+      padding: 12px 20px;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      transition: all 0.15s ease;
+      box-shadow: 0 4px 0 #1a365d;
+    }
+
+    .btn-retro:hover {
+      background: #3182ce;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 0 #1a365d;
+    }
+
+    .btn-retro:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #1a365d;
+    }
+
+    .btn-secondary {
+      background: #243b53;
+      border-color: #486581;
+      box-shadow: 0 4px 0 #102a43;
+    }
+
+    .btn-secondary:hover {
+      background: #334e68;
+      box-shadow: 0 6px 0 #102a43;
+    }
+
+    .controls-panel {
+      margin-top: 18px;
+      background: rgba(16, 24, 38, 0.9);
+      border: 1px solid #334e68;
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-size: 12px;
+      text-align: left;
+      line-height: 1.6;
+      color: #bcccdc;
+    }
+
+    .controls-panel strong {
+      color: #ffe066;
+    }
+
+    .key-badge {
+      display: inline-block;
+      background: #243b53;
+      border: 1px solid #627d98;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    /* Dev stats */
+    #dev-stats {
+      position: absolute;
+      bottom: 8px;
+      left: 10px;
+      font-size: 10px;
+      color: #627d98;
+      pointer-events: none;
+      font-family: monospace;
+      z-index: 20;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="ui-overlay">
+    <!-- Top HUD -->
+    <div id="hud">
+      <div class="hud-left">
+        <div class="hearts-container" id="hearts-container">
+          <div class="heart-icon" id="heart-0"></div>
+          <div class="heart-icon" id="heart-1"></div>
+          <div class="heart-icon" id="heart-2"></div>
+        </div>
+        <div class="light-gauge-container">
+          <span class="light-gauge-label">Lumière</span>
+          <div class="light-bar-bg">
+            <div class="light-bar-fill" id="light-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <div class="key-slot" title="Clé simple (Caverne de l'Est)">
+          <span class="key-icon" id="icon-simple-key">🗝️</span>
+          <span>Clé</span>
+        </div>
+        <div class="key-slot" title="Clé du Boss (Sanctuaire de l'Ouest)">
+          <span class="key-icon" id="icon-boss-key">👑</span>
+          <span>Boss</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Projected 3D Floating Interaction Prompt -->
+    <div id="interaction-prompt"></div>
+
+    <!-- Dialogue Box -->
+    <div id="dialogue-container" class="interactive">
+      <div class="dialogue-box">
+        <div class="dialogue-speaker" id="dialogue-speaker">Zalya</div>
+        <div class="dialogue-text" id="dialogue-text">...</div>
+        <div class="dialogue-hint">[E] ou [Espace] Continuer</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Title Screen Modal -->
+  <div id="title-screen" class="menu-modal interactive">
+    <div class="modal-card">
+      <div class="game-title">LUXEA</div>
+      <div class="game-subtitle">L'Éveil de Zalya — Games on Web 2027</div>
+
+      <button id="btn-start-game" class="btn-retro">Commencer l'aventure</button>
+      <button id="btn-sound-toggle" class="btn-retro btn-secondary">Son : Activé</button>
+
+      <div class="controls-panel">
+        <div><strong>Déplacement :</strong> <span class="key-badge">ZQSD</span> / <span class="key-badge">WASD</span> / <span class="key-badge">Flèches</span></div>
+        <div><strong>Épée (Attaque) :</strong> <span class="key-badge">Espace</span> ou <span class="key-badge">J</span> / Clic gauche</div>
+        <div><strong>Mode Torche (Lumière) :</strong> Maintenir <span class="key-badge">Shift</span> ou Clic droit</div>
+        <div><strong>Roulade (Esquive) :</strong> <span class="key-badge">K</span></div>
+        <div><strong>Interagir :</strong> <span class="key-badge">E</span> ou <span class="key-badge">Espace</span></div>
+        <div><strong>Pause :</strong> <span class="key-badge">Échap</span> ou <span class="key-badge">P</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pause Menu Modal -->
+  <div id="pause-modal" class="menu-modal interactive" style="display: none;">
+    <div class="modal-card">
+      <div class="game-title" style="font-size: 32px;">PAUSE</div>
+      <div class="game-subtitle">Partie en suspens</div>
+
+      <button id="btn-resume-game" class="btn-retro">Reprendre</button>
+      <button id="btn-pause-sound" class="btn-retro btn-secondary">Son : Activé</button>
+      <button id="btn-reset-game" class="btn-retro btn-secondary">Recommencer au Spawn</button>
+
+      <div class="controls-panel">
+        <div>Appuyez sur <span class="key-badge">Échap</span> ou <span class="key-badge">P</span> pour reprendre directement.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="gameover-modal" class="menu-modal interactive" style="display: none;">
+    <div class="modal-card">
+      <div class="game-title" style="font-size: 36px; color: #ff4d6d; text-shadow: 3px 3px 0 #80001a;">DÉFAITE</div>
+      <div class="game-subtitle">Zalya a succombé...</div>
+      <button id="btn-respawn" class="btn-retro">Réapparaître dans la Plaine</button>
+    </div>
+  </div>
+
+  <div id="dev-stats">60 FPS</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

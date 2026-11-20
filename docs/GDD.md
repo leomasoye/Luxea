@@ -1,4 +1,4 @@
-# Game Design Document (GDD) & Feuille de Route — Projet « Lezda »
+# Game Design Document (GDD) & Feuille de Route — Projet « Luxea »
 **Concours Games on Web 2027 — CGI**  
 **Thème :** Rétrogaming | **Moteur :** Babylon.js | **Langue :** Français
 
@@ -17,7 +17,7 @@ L'objectif est de réaliser un jeu d'action-aventure 3D hommage aux premiers *Th
 * **Gallen (Le Boss Ennemi) :** L'antagoniste qui garde la chambre du sanctuaire et retient Lyo captif. Un boss puissant et mémorable aux attaques télégraphiées et percutantes que Zalya devra terrasser dans l'arène finale.
 
 ### 1.2 Identité & Originalité (Cible : Prix du Jury & Prix le plus original)
-* **Nom de code & Titre du Jeu :** `Lezda` est le nom de code interne du dépôt de développement. Pour respecter strictement les règles d'originalité du concours (Article 5.1 du règlement) et éviter tout litige avec Nintendo, les noms créés (**Zalya**, **Lyo**, **Gallen**) posent les bases d'un univers 100 % original. Un titre officiel original sera fixé pour le jeu.
+* **Titre du Jeu :** **Luxea** est le titre officiel du jeu. Pour respecter strictement les règles d'originalité du concours (Article 5.1 du règlement) et éviter tout litige avec Nintendo, les noms créés (**Zalya**, **Lyo**, **Gallen**) posent les bases d'un univers 100 % original.
 * **Mécanique Originale : La Lumière de l'Épée (« Twist Rétro »)** 
   * L'épée de Zalya est imprégnée d'une **énergie lumineuse ancienne**. Cette mécanique centrale irrigue l'ensemble du gameplay et constitue l'identité distinctive du jeu.
   * **Mode Torche (maintien `Shift` ou clic droit) :** Zalya brandit son épée pour émettre une **aura lumineuse continue** autour d'elle. Éclaire les zones sombres, révèle les éléments cachés, repousse et affaiblit les créatures d'ombre.
