@@ -1,4 +1,4 @@
-# AGENT.md — Instructions & Contexte du Projet « Games on Web 2027 »
+﻿# AGENT.md — Instructions & Contexte du Projet « Games on Web 2027 »
 
 Ce fichier constitue la source de vérité pour tout agent IA (et membre de l'équipe) travaillant sur ce projet. **Toute génération de code, choix d'architecture, ajout de dépendance ou création d'asset doit impérativement respecter les règles ci-dessous.**
 
@@ -98,17 +98,17 @@ Le jury évalue les projets sur 4 axes principaux :
 * **Audio Chiptune / Rétro :** Synthèse temps réel via **Web Audio API** ou effets sonores CC0 (coup d'épée, ouverture de coffre, résolution d'énigme, dégâts, musique d'ambiance bouclée) avec bouton Mute accessible en un clic.
 
 ### 5.3 Mécanique Originale : La Lumière de l'Épée
-L'épée de Zalya est imprégnée d'une **énergie lumineuse ancienne**, constituant la mécanique centrale et distinctive du jeu (cible : Prix le plus original). Cette mécanique **doit être intégrée dès les fondations du code** et ne peut pas être ajoutée comme surcouche tardive.
+L'épée de Zelya est imprégnée d'une **énergie lumineuse ancienne**, constituant la mécanique centrale et distinctive du jeu (cible : Prix le plus original). Cette mécanique **doit être intégrée dès les fondations du code** et ne peut pas être ajoutée comme surcouche tardive.
 
 * **Fonctionnement :**
-  * **Mode Torche (maintien `Shift` ou clic droit) :** Zalya brandit son épée pour émettre une **aura lumineuse continue** (`PointLight` dynamique attachée à l'arme). Éclaire les zones sombres, révèle les éléments cachés, repousse certaines créatures d'ombre.
+  * **Mode Torche (maintien `Shift` ou clic droit) :** Zelya brandit son épée pour émettre une **aura lumineuse continue** (`PointLight` dynamique attachée à l'arme). Éclaire les zones sombres, révèle les éléments cachés, repousse certaines créatures d'ombre.
   * **Frappe Lumineuse (attaque standard) :** Chaque coup d'épée projette un **flash de lumière** bref qui endommage et illumine la zone d'impact.
   * **Jauge de Lumière (ressource limitée) :** L'énergie lumineuse se **consomme** dans l'obscurité et lors des attaques spéciales, et se **recharge** à la lumière naturelle (plaine extérieure, faisceaux de lumière dans les donjons, cristaux lumineux). Gérée visuellement dans le HUD.
 * **Interactions Gameplay :**
   * Zones d'obscurité dans les donjons où la visibilité est réduite sans l'épée levée.
   * Ennemis d'ombre : ne peuvent être touchés/affaiblis que sous l'effet de la lumière.
   * Mécanismes anciens (cristaux réfracteurs, miroirs, dalles photosensibles) réagissant à la lumière de l'épée.
-  * Le boss Gallen manipule les ténèbres pour éteindre les sources de lumière et forcer Zalya à gérer sa jauge.
+  * Le boss Gallen manipule les ténèbres pour éteindre les sources de lumière et forcer Zelya à gérer sa jauge.
 * **Implémentation Babylon.js :**
   * `PointLight` dynamique attachée au mesh de l'épée (portée et intensité variables selon la jauge).
   * `GlowLayer` pour l'aura lumineuse rétro autour de la lame.

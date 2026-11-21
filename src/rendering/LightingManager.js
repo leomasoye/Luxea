@@ -1,4 +1,4 @@
-import {
+﻿import {
   HemisphericLight,
   DirectionalLight,
   PointLight,
@@ -12,7 +12,7 @@ import {
  * Conforme à AGENT.md & GDD.md :
  * - Lumière directionnelle chaude (soleil de la plaine).
  * - Ambiance hémisphérique douce.
- * - PointLight dynamique attachée à l'épée de Zalya (Budget GPU strict : 1 seule lumière dynamique).
+ * - PointLight dynamique attachée à l'épée de Zelya (Budget GPU strict : 1 seule lumière dynamique).
  * - GlowLayer rétro pour l'aura de l'épée et les éléments lumineux.
  */
 export class LightingManager {

@@ -1,8 +1,8 @@
-import { Vector3, ArcRotateCamera } from '@babylonjs/core';
+﻿import { Vector3, ArcRotateCamera } from '@babylonjs/core';
 
 /**
  * CameraManager.js — Caméra zénithale / isométrique rétro 3/4.
- * Conforme à GDD.md : Vue plongeante ~45°, suivi lissé (Lerp) de Zalya,
+ * Conforme à GDD.md : Vue plongeante ~45°, suivi lissé (Lerp) de Zelya,
  * secousse d'écran (screen shake) rétro et bornage de la plaine.
  */
 export class CameraManager {

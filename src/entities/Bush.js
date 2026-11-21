@@ -1,4 +1,4 @@
-import {
+﻿import {
   MeshBuilder,
   StandardMaterial,
   Color3,
@@ -172,7 +172,7 @@ export class HeartPickup {
     this.root.rotation.y += dt * 2.2;
     this.root.position.y = 0.6 + Math.sin(this.animTimer) * 0.14;
 
-    // Détection de ramassage par Zalya
+    // Détection de ramassage par Zelya
     const pPos = player.getPosition();
     const dx = pPos.x - this.root.position.x;
     const dz = pPos.z - this.root.position.z;

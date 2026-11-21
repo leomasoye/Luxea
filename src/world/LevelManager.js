@@ -1,4 +1,4 @@
-import {
+﻿import {
   MeshBuilder,
   StandardMaterial,
   Color3,
@@ -86,7 +86,7 @@ export class LevelManager {
       position: new Vector3(22.5, 1.2, 2),
       radius: 2.8,
       promptText: "[E] Examiner l'entrée",
-      speaker: "Zalya",
+      speaker: "Zelya",
       text: "L'entrée de la Caverne du Gardien. Une brise fraîche et une obscurité dense s'en échappent... Mon épée se met à luire doucement. C'est ici que repose la première clé !"
     });
   }
@@ -195,7 +195,7 @@ export class LevelManager {
         if (this.saveState.bossKey) {
           return "Vous tenez la Clé du Boss ! Le sanctuaire tremble... Il est temps d'affronter Gallen et de délivrer Lyo !";
         }
-        return "Des coups sourds et une voix étouffée retentissent derrière le battant : « Zalya ! C'est moi, Lyo ! Gallen m'a enfermé ici... Trouve la Clé du Boss pour briser le sceau ! »";
+        return "Des coups sourds et une voix étouffée retentissent derrière le battant : « Zelya ! C'est moi, Lyo ! Gallen m'a enfermé ici... Trouve la Clé du Boss pour briser le sceau ! »";
       }
     });
   }
@@ -305,7 +305,7 @@ export class LevelManager {
     if (this.bossDoorKnockTimer <= 0) {
       this.bossDoorKnockTimer = 6.0 + Math.random() * 4.0; // Toutes les 6 à 10 secondes
       const pPos = player.getPosition();
-      // On ne joue le son que si Zalya est dans la moitié Nord de la plaine (distance de proximité)
+      // On ne joue le son que si Zelya est dans la moitié Nord de la plaine (distance de proximité)
       const distToDoor = Vector3.Distance(pPos, new Vector3(0, 1, 23.5));
       if (distToDoor < 18) {
         this.audio.playDoorKnock();

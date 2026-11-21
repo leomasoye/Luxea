@@ -1,4 +1,4 @@
-# LICENSES.md — Inventaire des Licences & Crédits
+﻿# LICENSES.md — Inventaire des Licences & Crédits
 
 Ce document recense l'intégralité des librairies tierces, moteurs et ressources utilisés dans le projet **Luxea** dans le cadre du concours **Games on Web 2027** organisé par CGI.
 
@@ -22,7 +22,7 @@ Ce document recense l'intégralité des librairies tierces, moteurs et ressource
 
 ## 2. Direction Artistique, Modèles 3D & Graphismes
 
-* **Modèles 3D (Zalya, buissons, décors, portes, armes) :** 100 % créés procéduralement par l'équipe via `MeshBuilder` de Babylon.js (formes low-poly primitives composées, optimisées en `ThinInstances` et matrices gelées).
+* **Modèles 3D (Zelya, buissons, décors, portes, armes) :** 100 % créés procéduralement par l'équipe via `MeshBuilder` de Babylon.js (formes low-poly primitives composées, optimisées en `ThinInstances` et matrices gelées).
 * **Textures & Palette de Couleurs :** Créées spécifiquement pour le projet, filtrage forcé en `Texture.NEAREST_SAMPLINGMODE`.
 * **Interface & HUD :** Rendu en overlay HTML5/CSS3 pur (formes CSS, clip-paths polygonaux, polices système monospace standard avec rendu pixelisé).
 

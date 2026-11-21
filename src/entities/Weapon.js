@@ -1,4 +1,4 @@
-import {
+﻿import {
   MeshBuilder,
   StandardMaterial,
   Color3,
@@ -7,7 +7,7 @@ import {
 } from '@babylonjs/core';
 
 /**
- * Weapon.js — Épée courte de Zalya & mécanique de la Frappe Lumineuse.
+ * Weapon.js — Épée courte de Zelya & mécanique de la Frappe Lumineuse.
  * Conforme à AGENT.md & GDD.md :
  * - Modèle low-poly original avec gemme lumineuse.
  * - Arc de cercle tranchant (sweep ~180°).
@@ -95,7 +95,7 @@ export class Weapon {
     // 7. Sillage dynamique de lame lumineuse (Ruban 3D synchronisé sur la lame)
     this.initSlashTrail();
 
-    // Position de repos au côté de Zalya
+    // Position de repos au côté de Zelya
     this.setRestPose();
   }
 
@@ -156,7 +156,7 @@ export class Weapon {
   }
 
   setTorchPose() {
-    // Épée brandie haut vers le ciel, avancée devant Zalya pour ne jamais traverser sa tête
+    // Épée brandie haut vers le ciel, avancée devant Zelya pour ne jamais traverser sa tête
     this.root.position.set(0.32, 1.35, 0.55);
     this.root.rotation.set(0.2, 0.15, -0.1);
   }

@@ -1,4 +1,4 @@
-import {
+﻿import {
   TransformNode,
   MeshBuilder,
   StandardMaterial,
@@ -8,7 +8,7 @@ import {
 import { Weapon } from './Weapon.js';
 
 /**
- * Player.js — Héroïne Zalya.
+ * Player.js — Héroïne Zelya.
  * Conforme à AGENT.md & GDD.md :
  * - Modèle low-poly rétro original (silhouette lisible, tunique, cheveux stylisés).
  * - Maniement nerveux (ZQSD/WASD/Flèches, pas de sur-vitesse en diagonale).
@@ -23,7 +23,7 @@ export class Player {
     this.lighting = lightingManager;
     this.camera = cameraManager;
     this.collision = collisionManager;
-    this.radius = 0.38; // Rayon de la hitbox circulaire de Zalya
+    this.radius = 0.38; // Rayon de la hitbox circulaire de Zelya
 
     this.root = new TransformNode('PlayerRoot', this.scene);
     this.root.position = new Vector3(0, 0, -4); // Point d'apparition au sud du Hub
@@ -88,31 +88,31 @@ export class Player {
 
   initMeshes() {
     // Matériau Tunique (Vert émeraude aventurier rétro)
-    this.tunicMaterial = new StandardMaterial('mat_zalya_tunic', this.scene);
+    this.tunicMaterial = new StandardMaterial('mat_zelya_tunic', this.scene);
     this.tunicMaterial.diffuseColor = new Color3(0.12, 0.65, 0.42);
     this.tunicMaterial.specularColor = new Color3(0.1, 0.2, 0.1);
 
     // Matériau Peau
-    const skinMaterial = new StandardMaterial('mat_zalya_skin', this.scene);
+    const skinMaterial = new StandardMaterial('mat_zelya_skin', this.scene);
     skinMaterial.diffuseColor = new Color3(0.98, 0.8, 0.68);
     skinMaterial.specularColor = new Color3(0, 0, 0);
 
     // Matériau Cheveux (Auburn rétro chaud)
-    const hairMaterial = new StandardMaterial('mat_zalya_hair', this.scene);
+    const hairMaterial = new StandardMaterial('mat_zelya_hair', this.scene);
     hairMaterial.diffuseColor = new Color3(0.65, 0.28, 0.12);
     hairMaterial.specularColor = new Color3(0.1, 0.05, 0);
 
     // Matériau Bottes / Ceinture (Cuir brun)
-    const leatherMaterial = new StandardMaterial('mat_zalya_leather', this.scene);
+    const leatherMaterial = new StandardMaterial('mat_zelya_leather', this.scene);
     leatherMaterial.diffuseColor = new Color3(0.42, 0.26, 0.14);
 
     // Matériau de dégâts (flash rouge)
-    this.hurtMaterial = new StandardMaterial('mat_zalya_hurt', this.scene);
+    this.hurtMaterial = new StandardMaterial('mat_zelya_hurt', this.scene);
     this.hurtMaterial.diffuseColor = new Color3(1.0, 0.2, 0.2);
     this.hurtMaterial.emissiveColor = new Color3(0.6, 0.0, 0.0);
 
     // 1. Torse (Tunique)
-    this.bodyMesh = MeshBuilder.CreateBox('zalya_body', {
+    this.bodyMesh = MeshBuilder.CreateBox('zelya_body', {
       width: 0.65,
       height: 0.75,
       depth: 0.45
@@ -122,7 +122,7 @@ export class Player {
     this.bodyMesh.parent = this.visualRoot;
 
     // Ceinture
-    const belt = MeshBuilder.CreateBox('zalya_belt', {
+    const belt = MeshBuilder.CreateBox('zelya_belt', {
       width: 0.67,
       height: 0.12,
       depth: 0.47
@@ -134,7 +134,7 @@ export class Player {
     // Boucle de ceinture (dorée)
     const buckleMat = new StandardMaterial('mat_buckle', this.scene);
     buckleMat.diffuseColor = new Color3(0.95, 0.8, 0.2);
-    const buckle = MeshBuilder.CreateBox('zalya_buckle', {
+    const buckle = MeshBuilder.CreateBox('zelya_buckle', {
       width: 0.18,
       height: 0.14,
       depth: 0.50
@@ -144,7 +144,7 @@ export class Player {
     buckle.parent = this.visualRoot;
 
     // 2. Tête
-    this.headMesh = MeshBuilder.CreateBox('zalya_head', {
+    this.headMesh = MeshBuilder.CreateBox('zelya_head', {
       width: 0.52,
       height: 0.52,
       depth: 0.50
@@ -167,7 +167,7 @@ export class Player {
     rightEye.parent = this.visualRoot;
 
     // 3. Chevelure rétro avec mèche stylisée
-    this.hairMesh = MeshBuilder.CreateBox('zalya_hair_top', {
+    this.hairMesh = MeshBuilder.CreateBox('zelya_hair_top', {
       width: 0.58,
       height: 0.24,
       depth: 0.56
@@ -176,7 +176,7 @@ export class Player {
     this.hairMesh.position.y = 1.76;
     this.hairMesh.parent = this.visualRoot;
 
-    const hairBack = MeshBuilder.CreateBox('zalya_hair_back', {
+    const hairBack = MeshBuilder.CreateBox('zelya_hair_back', {
       width: 0.58,
       height: 0.55,
       depth: 0.2
@@ -186,12 +186,12 @@ export class Player {
     hairBack.parent = this.visualRoot;
 
     // 4. Jambes / Bottes
-    const legL = MeshBuilder.CreateBox('zalya_leg_l', { width: 0.22, height: 0.45, depth: 0.26 }, this.scene);
+    const legL = MeshBuilder.CreateBox('zelya_leg_l', { width: 0.22, height: 0.45, depth: 0.26 }, this.scene);
     legL.material = leatherMaterial;
     legL.position.set(-0.18, 0.22, 0);
     legL.parent = this.visualRoot;
 
-    const legR = MeshBuilder.CreateBox('zalya_leg_r', { width: 0.22, height: 0.45, depth: 0.26 }, this.scene);
+    const legR = MeshBuilder.CreateBox('zelya_leg_r', { width: 0.22, height: 0.45, depth: 0.26 }, this.scene);
     legR.material = leatherMaterial;
     legR.position.set(0.18, 0.22, 0);
     legR.parent = this.visualRoot;
@@ -200,7 +200,7 @@ export class Player {
     const shadowMat = new StandardMaterial('mat_blob_shadow', this.scene);
     shadowMat.diffuseColor = new Color3(0, 0, 0);
     shadowMat.alpha = 0.38;
-    this.shadowDisc = MeshBuilder.CreateDisc('zalya_shadow', {
+    this.shadowDisc = MeshBuilder.CreateDisc('zelya_shadow', {
       radius: 0.65,
       tessellation: 16
     }, this.scene);

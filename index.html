@@ -1,10 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Luxea — Concours Games on Web 2027</title>
   <style>
+    @font-face {
+      font-family: 'Triforce';
+      src: url('/assets/fonts/Triforce-y07d.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -103,11 +110,12 @@
     }
 
     .light-gauge-label {
-      font-size: 11px;
-      font-weight: bold;
+      font-family: 'Triforce', 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: normal;
       color: #ffe066;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
     }
 
     .light-bar-bg {
@@ -141,8 +149,10 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 12px;
-      font-weight: bold;
+      font-family: 'Triforce', 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: normal;
+      letter-spacing: 1px;
     }
 
     .key-icon {
@@ -168,8 +178,9 @@
       color: #fff;
       padding: 6px 12px;
       border-radius: 4px;
-      font-size: 13px;
-      font-weight: bold;
+      font-family: 'Triforce', 'Courier New', monospace;
+      font-size: 14px;
+      letter-spacing: 1px;
       pointer-events: none;
       display: none;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
@@ -196,11 +207,11 @@
     }
 
     .dialogue-speaker {
+      font-family: 'Triforce', 'Courier New', monospace;
       color: #ffe066;
-      font-size: 14px;
-      font-weight: bold;
+      font-size: 16px;
+      letter-spacing: 2px;
       text-transform: uppercase;
-      letter-spacing: 1px;
       margin-bottom: 6px;
       display: flex;
       align-items: center;
@@ -217,7 +228,9 @@
       position: absolute;
       right: 18px;
       bottom: 10px;
-      font-size: 11px;
+      font-family: 'Triforce', 'Courier New', monospace;
+      font-size: 12px;
+      letter-spacing: 1px;
       color: #9fb3c8;
       animation: pulse 1s infinite alternate;
     }
@@ -255,17 +268,18 @@
     }
 
     .game-title {
-      font-size: 42px;
-      font-weight: 900;
-      letter-spacing: 6px;
+      font-family: 'Triforce', 'Courier New', sans-serif;
+      font-size: 54px;
+      letter-spacing: 5px;
       color: #ffe066;
-      text-shadow: 3px 3px 0 #b38600, 0 0 20px rgba(255, 224, 102, 0.4);
-      margin-bottom: 6px;
+      text-shadow: 4px 4px 0 #b38600, 0 0 25px rgba(255, 224, 102, 0.45);
+      margin-bottom: 8px;
     }
 
     .game-subtitle {
+      font-family: 'Triforce', 'Courier New', sans-serif;
       font-size: 14px;
-      color: #829ab1;
+      color: #9fb3c8;
       letter-spacing: 2px;
       text-transform: uppercase;
       margin-bottom: 24px;
@@ -278,11 +292,9 @@
       border: 2px solid #63b3ed;
       color: #ffffff;
       padding: 12px 20px;
-      font-family: inherit;
-      font-size: 16px;
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
+      font-family: 'Triforce', 'Courier New', monospace;
+      font-size: 18px;
+      letter-spacing: 2px;
       cursor: pointer;
       border-radius: 4px;
       margin-bottom: 12px;
@@ -389,7 +401,7 @@
     <!-- Dialogue Box -->
     <div id="dialogue-container" class="interactive">
       <div class="dialogue-box">
-        <div class="dialogue-speaker" id="dialogue-speaker">Zalya</div>
+        <div class="dialogue-speaker" id="dialogue-speaker">Zelya</div>
         <div class="dialogue-text" id="dialogue-text">...</div>
         <div class="dialogue-hint">[E] ou [Espace] Continuer</div>
       </div>
@@ -400,10 +412,10 @@
   <div id="title-screen" class="menu-modal interactive">
     <div class="modal-card">
       <div class="game-title">LUXEA</div>
-      <div class="game-subtitle">L'Éveil de Zalya — Games on Web 2027</div>
+      <div class="game-subtitle">L'Éveil de Zelya — Games on Web 2027</div>
 
       <button id="btn-start-game" class="btn-retro">Commencer l'aventure</button>
-      <button id="btn-sound-toggle" class="btn-retro btn-secondary">Son : Activé</button>
+      <button id="btn-sound-toggle" class="btn-retro btn-secondary" style="display: none;">Son : Désactivé</button>
 
       <div class="controls-panel">
         <div><strong>Déplacement :</strong> <span class="key-badge">ZQSD</span> / <span class="key-badge">WASD</span> / <span class="key-badge">Flèches</span></div>
@@ -423,7 +435,7 @@
       <div class="game-subtitle">Partie en suspens</div>
 
       <button id="btn-resume-game" class="btn-retro">Reprendre</button>
-      <button id="btn-pause-sound" class="btn-retro btn-secondary">Son : Activé</button>
+      <button id="btn-pause-sound" class="btn-retro btn-secondary" style="display: none;">Son : Désactivé</button>
       <button id="btn-reset-game" class="btn-retro btn-secondary">Recommencer au Spawn</button>
 
       <div class="controls-panel">
@@ -436,7 +448,7 @@
   <div id="gameover-modal" class="menu-modal interactive" style="display: none;">
     <div class="modal-card">
       <div class="game-title" style="font-size: 36px; color: #ff4d6d; text-shadow: 3px 3px 0 #80001a;">DÉFAITE</div>
-      <div class="game-subtitle">Zalya a succombé...</div>
+      <div class="game-subtitle">Zelya a succombé...</div>
       <button id="btn-respawn" class="btn-retro">Réapparaître dans la Plaine</button>
     </div>
   </div>
