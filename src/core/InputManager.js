@@ -1,6 +1,10 @@
 /**
- * InputManager.js — Gestionnaire universel d'entrées clavier & manette.
- * Conforme à AGENT.md : Support natif ZQSD (AZERTY), WASD (QWERTY) et Flèches directionnelles sans configuration.
+ * InputManager.js — Gestionnaire universel d'entrées clavier, souris & manette.
+ * Conforme à AGENT.md :
+ * - Support natif ZQSD (AZERTY), WASD (QWERTY) et Flèches directionnelles sans configuration.
+ * - Support de la rotation caméra intelligente à la souris (Clic Droit ou Clic Molette maintenu).
+ * - Zoom caméra à la molette.
+ * - Recentrage caméra (Touche R ou R3 manette).
  */
 export class InputManager {
   constructor() {
@@ -10,9 +14,18 @@ export class InputManager {
     this.mouse = {
       leftDown: false,
       rightDown: false,
+      middleDown: false,
       leftPressed: false,
-      rightPressed: false
+      rightPressed: false,
+      middlePressed: false
     };
+
+    // Deltas de déplacement et zoom caméra
+    this.cameraDeltaX = 0;
+    this.cameraDeltaY = 0;
+    this.cameraZoomDelta = 0;
+    this.lastMouseX = null;
+    this.lastMouseY = null;
 
     this.moveVector = { x: 0, z: 0 };
     this.attackPressed = false;
@@ -20,11 +33,14 @@ export class InputManager {
     this.dodgePressed = false;
     this.interactPressed = false;
     this.pausePressed = false;
+    this.recenterPressed = false;
 
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
+    this.onPointerMove = this.onPointerMove.bind(this);
+    this.onWheel = this.onWheel.bind(this);
     this.onContextMenu = this.onContextMenu.bind(this);
 
     this.init();
@@ -36,6 +52,8 @@ export class InputManager {
     // Utilisation de pointerdown / pointerup en phase de capture pour contourner l'interception de canvas par Babylon.js
     window.addEventListener('pointerdown', this.onPointerDown, { capture: true });
     window.addEventListener('pointerup', this.onPointerUp, { capture: true });
+    window.addEventListener('pointermove', this.onPointerMove, { capture: true });
+    window.addEventListener('wheel', this.onWheel, { passive: true });
     window.addEventListener('contextmenu', this.onContextMenu);
   }
 
@@ -44,6 +62,8 @@ export class InputManager {
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('pointerdown', this.onPointerDown, { capture: true });
     window.removeEventListener('pointerup', this.onPointerUp, { capture: true });
+    window.removeEventListener('pointermove', this.onPointerMove, { capture: true });
+    window.removeEventListener('wheel', this.onWheel);
     window.removeEventListener('contextmenu', this.onContextMenu);
   }
 
@@ -54,7 +74,7 @@ export class InputManager {
   }
 
   onContextMenu(e) {
-    // Empêcher l'ouverture du menu contextuel au clic droit (utilisé pour la lumière/torche)
+    // Empêcher l'ouverture du menu contextuel au clic droit (utilisé pour la caméra et la lumière/torche)
     e.preventDefault();
   }
 
@@ -66,18 +86,59 @@ export class InputManager {
       this.mouse.leftDown = true;
       this.mouse.leftPressed = true;
       this.attackPressed = true;
+    } else if (e.button === 1) {
+      // Clic molette pour rotation caméra
+      this.mouse.middleDown = true;
+      this.mouse.middlePressed = true;
+      e.preventDefault();
     } else if (e.button === 2) {
       this.mouse.rightDown = true;
       this.mouse.rightPressed = true;
       this.torchHeld = true;
     }
+
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
   }
 
   onPointerUp(e) {
     if (e.button === 0) {
       this.mouse.leftDown = false;
+    } else if (e.button === 1) {
+      this.mouse.middleDown = false;
     } else if (e.button === 2) {
       this.mouse.rightDown = false;
+    }
+  }
+
+  onPointerMove(e) {
+    if (this.mouse.rightDown || this.mouse.middleDown) {
+      let dx = e.movementX;
+      let dy = e.movementY;
+
+      // Fallback si movementX/Y n'est pas fourni par le navigateur
+      if (dx === undefined || dy === undefined || (dx === 0 && dy === 0 && this.lastMouseX !== null)) {
+        if (this.lastMouseX !== null && this.lastMouseY !== null) {
+          dx = e.clientX - this.lastMouseX;
+          dy = e.clientY - this.lastMouseY;
+        } else {
+          dx = 0;
+          dy = 0;
+        }
+      }
+
+      this.cameraDeltaX += dx;
+      this.cameraDeltaY += dy;
+    }
+
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
+  }
+
+  onWheel(e) {
+    // Zoom / Dézoom caméra
+    if (Math.abs(e.deltaY) > 0) {
+      this.cameraZoomDelta += Math.sign(e.deltaY);
     }
   }
 
@@ -106,6 +167,13 @@ export class InputManager {
     if (e.code === 'KeyK') {
       if (!this.previousKeys.get(e.code)) {
         this.dodgePressed = true;
+      }
+    }
+
+    // Recentrage rapide de la caméra (R)
+    if (e.code === 'KeyR') {
+      if (!this.previousKeys.get(e.code)) {
+        this.recenterPressed = true;
       }
     }
   }
@@ -155,6 +223,20 @@ export class InputManager {
         forward = stickY;
       }
 
+      // Stick droit manette pour rotation caméra
+      const rightStickX = Math.abs(gamepad.axes[2]) > 0.15 ? gamepad.axes[2] : 0;
+      const rightStickY = Math.abs(gamepad.axes[3]) > 0.15 ? gamepad.axes[3] : 0;
+      if (rightStickX !== 0 || rightStickY !== 0) {
+        this.cameraDeltaX += rightStickX * 14;
+        this.cameraDeltaY += rightStickY * 14;
+      }
+
+      // Clic Stick Droit (R3) = Recentrage caméra
+      if (gamepad.buttons[11]?.pressed && !this.gamepadPrevR3) {
+        this.recenterPressed = true;
+      }
+      this.gamepadPrevR3 = gamepad.buttons[11]?.pressed;
+
       // Bouton A / X (Xbox/PS) = Attaque
       if (gamepad.buttons[0]?.pressed && !this.gamepadPrevA) {
         this.attackPressed = true;
@@ -186,12 +268,16 @@ export class InputManager {
     // Mode Torche (Shift maintenu ou Clic Droit)
     this.torchHeld = this.isKeyDown('ShiftLeft') || this.isKeyDown('ShiftRight') || this.mouse.rightDown;
 
-    // Sauvegarde de l'état précédent pour détection de front montant
+    this.mouse.leftPressed = false;
+    this.mouse.rightPressed = false;
+    this.mouse.middlePressed = false;
+  }
+
+  // Sauvegarde de l'état précédent en fin de boucle de jeu pour détection de front montant
+  postUpdate() {
     for (const [code, val] of this.keys.entries()) {
       this.previousKeys.set(code, val);
     }
-    this.mouse.leftPressed = false;
-    this.mouse.rightPressed = false;
   }
 
   // Consomme le signal d'attaque (évite les répétitions non voulues)
@@ -219,15 +305,41 @@ export class InputManager {
     return val;
   }
 
+  // Consomme les deltas caméra cumulés
+  consumeCameraInput() {
+    const delta = {
+      deltaX: this.cameraDeltaX,
+      deltaY: this.cameraDeltaY,
+      zoomDelta: this.cameraZoomDelta
+    };
+    this.cameraDeltaX = 0;
+    this.cameraDeltaY = 0;
+    this.cameraZoomDelta = 0;
+    return delta;
+  }
+
+  // Consomme le déclenchement de recentrage caméra
+  consumeRecenter() {
+    const val = this.recenterPressed;
+    this.recenterPressed = false;
+    return val;
+  }
+
   // Réinitialise tous les états transitoires (clics en attente, entrées résiduelles après un clic UI)
   flush() {
     this.attackPressed = false;
     this.dodgePressed = false;
     this.interactPressed = false;
     this.pausePressed = false;
+    this.recenterPressed = false;
+    this.cameraDeltaX = 0;
+    this.cameraDeltaY = 0;
+    this.cameraZoomDelta = 0;
     this.mouse.leftDown = false;
     this.mouse.rightDown = false;
+    this.mouse.middleDown = false;
     this.mouse.leftPressed = false;
     this.mouse.rightPressed = false;
+    this.mouse.middlePressed = false;
   }
 }

@@ -33,8 +33,22 @@ export class UIManager {
     this.gameOverModal = document.getElementById('gameover-modal');
 
     this.btnStartGame = document.getElementById('btn-start-game');
-    this.btnSoundToggle = document.getElementById('btn-sound-toggle');
+    this.btnTitleSettings = document.getElementById('btn-title-settings');
+    this.btnTitleQuit = document.getElementById('btn-title-quit');
+    this.titleMenuItems = Array.from(document.querySelectorAll('.btn-title-item'));
+
+    this.settingsModal = document.getElementById('settings-modal');
+    this.btnSettingsAudio = document.getElementById('btn-settings-audio');
+    this.btnSettingsBack = document.getElementById('btn-settings-back');
+
+    this.quitModal = document.getElementById('quit-modal');
+    this.btnQuitConfirm = document.getElementById('btn-quit-confirm');
+    this.btnQuitCancel = document.getElementById('btn-quit-cancel');
+    this.quitGoodbyeScreen = document.getElementById('quit-goodbye-screen');
+    this.btnQuitReturn = document.getElementById('btn-quit-return');
+
     this.btnResumeGame = document.getElementById('btn-resume-game');
+    this.btnPauseSettings = document.getElementById('btn-pause-settings');
     this.btnPauseSound = document.getElementById('btn-pause-sound');
     this.btnResetGame = document.getElementById('btn-reset-game');
     this.btnRespawn = document.getElementById('btn-respawn');
@@ -44,6 +58,53 @@ export class UIManager {
     this.tempVector = new Vector3();
     this.isDialogueActive = false;
     this.dialogueCallback = null;
+    this.titleSelectedIndex = 0;
+    this.settingsFromPause = false;
+
+    // Écouteur global clavier pour navigation instantanée dans les menus
+    this.setupKeyboardNavigation();
+    this.setTitleSelection(0);
+  }
+
+  setupKeyboardNavigation() {
+    window.addEventListener('keydown', (e) => {
+      // 1. Navigation dans l'Écran Titre (Flèches Haut/Bas, W/S, Z/S et validation Entrée/Espace)
+      const isTitleActive = this.titleScreen && this.titleScreen.style.display !== 'none';
+      const isSettingsOpen = this.settingsModal && this.settingsModal.style.display !== 'none';
+      const isQuitOpen = this.quitModal && this.quitModal.style.display !== 'none';
+      const isGoodbyeOpen = this.quitGoodbyeScreen && this.quitGoodbyeScreen.style.display !== 'none';
+
+      if (isTitleActive && !isSettingsOpen && !isQuitOpen && !isGoodbyeOpen) {
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          e.preventDefault();
+          this.navigateTitleMenu(1);
+        } else if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'KeyZ') {
+          e.preventDefault();
+          this.navigateTitleMenu(-1);
+        } else if (e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault();
+          this.activateCurrentTitleMenu();
+        }
+      } else if (isSettingsOpen) {
+        if (e.code === 'Escape' || e.code === 'Backspace') {
+          e.preventDefault();
+          this.btnSettingsBack?.click();
+        }
+      } else if (isQuitOpen) {
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          this.btnQuitCancel?.click();
+        } else if (e.code === 'Enter') {
+          e.preventDefault();
+          this.btnQuitConfirm?.click();
+        }
+      } else if (isGoodbyeOpen) {
+        if (e.code === 'Enter' || e.code === 'Escape' || e.code === 'Space') {
+          e.preventDefault();
+          this.btnQuitReturn?.click();
+        }
+      }
+    }, { capture: true });
   }
 
   // Met à jour l'affichage des 3 cœurs (6 PV max)
@@ -161,13 +222,74 @@ export class UIManager {
     }
   }
 
+  // Navigation dans le menu Titre style Zelda
+  setTitleSelection(index) {
+    if (!this.titleMenuItems || this.titleMenuItems.length === 0) return;
+    this.titleSelectedIndex = (index + this.titleMenuItems.length) % this.titleMenuItems.length;
+    this.titleMenuItems.forEach((btn, idx) => {
+      if (idx === this.titleSelectedIndex) {
+        btn.classList.add('active-select');
+      } else {
+        btn.classList.remove('active-select');
+      }
+    });
+  }
+
+  navigateTitleMenu(direction) {
+    this.setTitleSelection(this.titleSelectedIndex + direction);
+  }
+
+  activateCurrentTitleMenu() {
+    if (this.titleMenuItems && this.titleMenuItems[this.titleSelectedIndex]) {
+      this.titleMenuItems[this.titleSelectedIndex].click();
+    }
+  }
+
   // Contrôles des fenêtres modales
-  showTitleScreen() {
-    if (this.titleScreen) this.titleScreen.style.display = 'flex';
+  showTitleScreen(replayAnimation = false) {
+    if (this.titleScreen) {
+      this.titleScreen.style.display = 'flex';
+      if (replayAnimation) {
+        const logo = this.titleScreen.querySelector('.title-logo-container');
+        if (logo) {
+          logo.style.animation = 'none';
+          void logo.offsetHeight; // force reflow
+          logo.style.animation = '';
+        }
+      }
+      this.setTitleSelection(0);
+    }
   }
 
   hideTitleScreen() {
     if (this.titleScreen) this.titleScreen.style.display = 'none';
+  }
+
+  showSettings(fromPause = false) {
+    this.settingsFromPause = fromPause;
+    if (this.settingsModal) this.settingsModal.style.display = 'flex';
+  }
+
+  hideSettings() {
+    if (this.settingsModal) this.settingsModal.style.display = 'none';
+    return this.settingsFromPause;
+  }
+
+  showQuitModal() {
+    if (this.quitModal) this.quitModal.style.display = 'flex';
+  }
+
+  hideQuitModal() {
+    if (this.quitModal) this.quitModal.style.display = 'none';
+  }
+
+  showQuitGoodbye() {
+    if (this.quitModal) this.quitModal.style.display = 'none';
+    if (this.quitGoodbyeScreen) this.quitGoodbyeScreen.style.display = 'flex';
+  }
+
+  hideQuitGoodbye() {
+    if (this.quitGoodbyeScreen) this.quitGoodbyeScreen.style.display = 'none';
   }
 
   showPauseModal() {
@@ -187,8 +309,8 @@ export class UIManager {
   }
 
   updateSoundButton(isMuted) {
-    const html = `<span class="cursor-arrow">►</span> Son : ${isMuted ? 'Désactivé' : 'Activé'}`;
-    if (this.btnSoundToggle) this.btnSoundToggle.innerHTML = html;
+    const html = `<span class="cursor-arrow">►</span> Son : ${isMuted ? 'Desactive' : 'Active'}`;
+    if (this.btnSettingsAudio) this.btnSettingsAudio.innerHTML = html;
     if (this.btnPauseSound) this.btnPauseSound.innerHTML = html;
   }
 

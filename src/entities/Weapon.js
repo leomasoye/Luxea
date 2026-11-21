@@ -30,7 +30,7 @@ export class Weapon {
 
     this.isSlashing = false;
     this.slashTimer = 0;
-    this.slashDuration = 0.28; // Durée de l'animation d'attaque complète (windup + frappe + recovery)
+    this.slashDuration = 0.30; // Durée de l'animation d'attaque complète (windup + frappe + recovery)
 
     this.initMeshes();
   }
@@ -71,12 +71,12 @@ export class Weapon {
     // 4. Lame d'acier biseautée
     this.bladeMesh = MeshBuilder.CreateBox('swordBlade', {
       width: 0.16,
-      height: 0.95,
+      height: 1.0,
       depth: 0.05
     }, this.scene);
     this.bladeMesh.material = steelMat;
     this.bladeMesh.parent = this.root;
-    this.bladeMesh.position.y = 0.88;
+    this.bladeMesh.position.y = 0.90;
 
     // 5. Gemme incrustée dans la garde (source de l'énergie lumineuse)
     const gem = MeshBuilder.CreateSphere('swordGem', {
@@ -90,7 +90,7 @@ export class Weapon {
     // 6. Point d'attache de la lumière dynamique (pointe de l'épée)
     this.tipNode = new TransformNode('swordTip', this.scene);
     this.tipNode.parent = this.root;
-    this.tipNode.position.y = 1.35;
+    this.tipNode.position.y = 1.40;
 
     // 7. Sillage dynamique de lame lumineuse (Ruban 3D synchronisé sur la lame)
     this.initSlashTrail();
@@ -101,14 +101,14 @@ export class Weapon {
 
   initSlashTrail() {
     const trailMat = new StandardMaterial('mat_sword_trail', this.scene);
-    trailMat.diffuseColor = new Color3(1.0, 0.95, 0.65);
-    trailMat.emissiveColor = new Color3(1.0, 0.85, 0.35); // Lueur dorée intense rétro
+    trailMat.diffuseColor = new Color3(1.0, 0.98, 0.65);
+    trailMat.emissiveColor = new Color3(1.0, 0.88, 0.28); // Lueur dorée intense rétro
     trailMat.specularColor = new Color3(1.0, 1.0, 1.0);
-    trailMat.alpha = 0.9;
+    trailMat.alpha = 0.95;
     trailMat.backFaceCulling = false;
 
-    // 16 points d'échantillonnage pour un arc de cercle ultra-lisse
-    this.trailSegments = 16;
+    // 24 points d'échantillonnage pour un arc de cercle large et ultra-lisse
+    this.trailSegments = 24;
     this.basePath = [];
     this.tipPath = [];
     for (let i = 0; i < this.trailSegments; i++) {
@@ -181,91 +181,94 @@ export class Weapon {
       this.slashTimer -= dt;
       const progress = this.getProgress(); // 0 à 1
 
-      // --- PHASE 1 : Préparation & Armement du coup (Windup) de 0.0 à 0.14 ---
-      if (progress < 0.14) {
-        const u = progress / 0.14;
+      // Paramètres de l'arc de cercle parfait centré sur Zelya
+      const z_c = 0.15; // Centre de rotation dans le repère local
+      const R_hilt = 0.50; // Rayon constant de la poignée
+      const R_base = R_hilt + 0.25; // Rayon intérieur constant du ruban
+      const R_tip = R_hilt + 1.35; // Rayon extérieur constant du ruban (cercle parfait)
+      const hy = 0.95; // Hauteur constante du plan de coupe horizontal
+      const phiStart = 1.85; // +106° à droite
+      const phiTotal = 3.70; // 212° de balayage circulaire total
+
+      // --- PHASE 1 : Préparation & Armement fluide (Windup) de 0.0 à 0.10 ---
+      if (progress < 0.10) {
+        const u = progress / 0.10;
         const w = Math.sin(u * Math.PI * 0.5);
 
-        // L'épée monte prestement vers l'épaule droite en position d'armement
+        // Amorce de l'arc de cercle à l'épaule droite
         const startX = isTorchMode ? 0.32 : 0.42;
         const startY = isTorchMode ? 1.35 : 0.50;
         const startZ = isTorchMode ? 0.55 : 0.15;
 
+        const armPoseX = R_hilt * Math.sin(phiStart);
+        const armPoseZ = z_c + R_hilt * Math.cos(phiStart);
+
         this.root.position.set(
-          startX + (0.52 - startX) * w,
-          startY + (1.20 - startY) * w,
-          startZ + (0.28 - startZ) * w
+          startX + (armPoseX - startX) * w,
+          startY + (hy - startY) * w,
+          startZ + (armPoseZ - startZ) * w
         );
         this.root.rotation.set(
-          0.2 - 0.45 * w,
-          -0.65 * w,
-          -0.2 - 0.25 * w
+          (Math.PI / 2) * w + (0.2 * (1 - w)),
+          phiStart * w,
+          -0.2 * (1 - w)
         );
 
         if (this.trailMesh) {
           this.trailMesh.setEnabled(false);
         }
       }
-      // --- PHASE 2 : Frappe explosive en croissant devant le torse de 0.14 à 0.64 ---
-      else if (progress < 0.64) {
-        const u = (progress - 0.14) / 0.50;
-        // Accélération explosive (Cubic ease-out) : la lame fend l'air dès le premier tiers
-        const e = 1.0 - Math.pow(1.0 - u, 3);
+      // --- PHASE 2 : Arc de cercle parfait (0.10 à 0.62) ---
+      else if (progress < 0.62) {
+        const u = (progress - 0.10) / 0.52;
+        // Accélération explosive (Cubic ease-out percutante)
+        const e = 1.0 - Math.pow(1.0 - u, 2.5);
 
-        // Balayage franc devant le torse (de +75° à droite jusqu'à -75° à gauche)
-        const phi = 1.30 - 2.60 * e;
+        // Angle de rotation le long du cercle parfait
+        const phi = phiStart - phiTotal * e;
 
-        // Position de la poignée : hauteur de poitrine (y ~ 1.05) avec un arc plongeant naturel
-        const hx = Math.sin(phi) * 0.62;
-        const hz = Math.cos(phi) * 0.36 + 0.58;
-        const hy = 1.15 - 0.28 * e + 0.18 * e * e;
+        // Position rigoureusement circulaire de la garde
+        const hx = R_hilt * Math.sin(phi);
+        const hz = z_c + R_hilt * Math.cos(phi);
 
-        // Orientation de la lame : couchée à l'horizontale, coupante dans le sens de l'arc
-        const rotX = Math.PI / 2.02 + 0.15 * Math.sin(e * Math.PI);
-        const rotY = -phi * 1.22;
-        const rotZ = 0.22 * Math.cos(phi);
+        // Orientation radiale stricte : la lame pointe exactement le long du rayon du cercle
+        const rotX = Math.PI / 2;
+        const rotY = phi;
+        const rotZ = 0;
 
         this.root.position.set(hx, hy, hz);
         this.root.rotation.set(rotX, rotY, rotZ);
 
-        // Mise à jour en temps réel du ruban lumineux (Sword Trail)
-        // Les coordonnées du ruban sont calculées exactement là où la lame passe !
+        // Mise à jour de la traînée lumineuse : anneau circulaire parfait
         for (let i = 0; i < this.trailSegments; i++) {
           const k = i / (this.trailSegments - 1);
           const sampleE = e * k;
-          const sPhi = 1.30 - 2.60 * sampleE;
+          const sPhi = phiStart - phiTotal * sampleE;
 
-          const sHx = Math.sin(sPhi) * 0.62;
-          const sHz = Math.cos(sPhi) * 0.36 + 0.58;
-          const sHy = 1.15 - 0.28 * sampleE + 0.18 * sampleE * sampleE;
+          const sinP = Math.sin(sPhi);
+          const cosP = Math.cos(sPhi);
 
-          const sRotX = Math.PI / 2.02 + 0.15 * Math.sin(sampleE * Math.PI);
-          const sRotY = -sPhi * 1.22;
-          const sRotZ = 0.22 * Math.cos(sPhi);
-
-          const basePt = this.getSwordPoint(sHx, sHy, sHz, sRotX, sRotY, sRotZ, 0.35);
-          const tipPt = this.getSwordPoint(sHx, sHy, sHz, sRotX, sRotY, sRotZ, 1.42);
-
-          this.basePath[i].copyFrom(basePt);
-          this.tipPath[i].copyFrom(tipPt);
+          // Points de base et de pointe le long de rayons circulaires parfaits
+          this.basePath[i].set(R_base * sinP, hy, z_c + R_base * cosP);
+          this.tipPath[i].set(R_tip * sinP, hy, z_c + R_tip * cosP);
         }
 
         MeshBuilder.CreateRibbon(null, {
           pathArray: [this.basePath, this.tipPath],
           instance: this.trailMesh
         });
-        this.trailMesh.material.alpha = 0.90;
+        this.trailMesh.material.alpha = 0.95;
         this.trailMesh.setEnabled(true);
       }
-      // --- PHASE 3 : Amorti & Retour en garde (Recovery) de 0.64 à 1.0 ---
+      // --- PHASE 3 : Amorti & Retour en garde (Recovery) de 0.62 à 1.0 ---
       else {
-        const u = (progress - 0.64) / 0.36;
+        const u = (progress - 0.62) / 0.38;
         const s = Math.sin(u * Math.PI * 0.5);
 
-        // Pose de fin de coupe
-        const endPoseX = Math.sin(-1.30) * 0.62;
-        const endPoseZ = Math.cos(-1.30) * 0.36 + 0.58;
-        const endPoseY = 1.05;
+        // Pose de fin d'arc à gauche
+        const endPhi = phiStart - phiTotal;
+        const endPoseX = R_hilt * Math.sin(endPhi);
+        const endPoseZ = z_c + R_hilt * Math.cos(endPhi);
 
         const targetX = isTorchMode ? 0.32 : 0.42;
         const targetY = isTorchMode ? 1.35 : 0.50;
@@ -277,18 +280,18 @@ export class Weapon {
 
         this.root.position.set(
           endPoseX + (targetX - endPoseX) * s,
-          endPoseY + (targetY - endPoseY) * s,
+          hy + (targetY - hy) * s,
           endPoseZ + (targetZ - endPoseZ) * s
         );
         this.root.rotation.set(
-          (Math.PI / 2.02) + (targetRotX - Math.PI / 2.02) * s,
-          1.58 + (targetRotY - 1.58) * s,
-          0.05 + (targetRotZ - 0.05) * s
+          (Math.PI / 2) + (targetRotX - Math.PI / 2) * s,
+          endPhi + (targetRotY - endPhi) * s,
+          targetRotZ * s
         );
 
-        // Évanouissement progressif et élégant de la traînée lumineuse
+        // Évanouissement progressif de la traînée lumineuse
         if (this.trailMesh) {
-          this.trailMesh.material.alpha = 0.90 * (1.0 - s);
+          this.trailMesh.material.alpha = 0.95 * (1.0 - s);
         }
       }
 
@@ -313,15 +316,15 @@ export class Weapon {
   }
 
   /**
-   * Test de collision sectoriel devant le joueur.
-   * Vérifie si une position cible est dans le cône de frappe (~180°, portée 2.3 unités).
+   * Test de collision sectoriel circulaire devant le joueur.
+   * Vérifie si une cible est dans l'arc de frappe parfait (~212°, portée 2.2 unités).
    */
   checkHit(playerPos, playerFacingAngle, targetPos, targetRadius = 0.8) {
     const dx = targetPos.x - playerPos.x;
     const dz = targetPos.z - playerPos.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
 
-    const hitRange = 2.3 + targetRadius;
+    const hitRange = 2.2 + targetRadius;
     if (dist > hitRange) return false;
 
     // Angle vers la cible
@@ -332,7 +335,7 @@ export class Weapon {
     while (diffAngle > Math.PI) diffAngle -= 2 * Math.PI;
     while (diffAngle < -Math.PI) diffAngle += 2 * Math.PI;
 
-    // Couvre un arc généreux d'environ 150° (±75° devant le joueur)
-    return Math.abs(diffAngle) < (Math.PI * 0.55);
+    // Arc de cercle parfait de 212° (±106° / 1.85 rad)
+    return Math.abs(diffAngle) < 1.85;
   }
 }

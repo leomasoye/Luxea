@@ -1,4 +1,4 @@
-﻿import {
+import {
   MeshBuilder,
   StandardMaterial,
   Color3,
@@ -85,7 +85,7 @@ export class LevelManager {
       title: "Caverne du Gardien",
       position: new Vector3(22.5, 1.2, 2),
       radius: 2.8,
-      promptText: "[E] Examiner l'entrée",
+      promptText: "[E] Examiner l'entree",
       speaker: "Zelya",
       text: "L'entrée de la Caverne du Gardien. Une brise fraîche et une obscurité dense s'en échappent... Mon épée se met à luire doucement. C'est ici que repose la première clé !"
     });
@@ -128,7 +128,7 @@ export class LevelManager {
       position: new Vector3(-21.8, 1.2, 2),
       radius: 2.8,
       promptText: "[E] Examiner la grille",
-      speaker: "Grille Scellée",
+      speaker: "Grille Scellee",
       getText: () => {
         if (this.saveState.simpleKey) {
           return "La Clé simple brille dans votre sacoche ! Vous pouvez insérer la clé pour déverrouiller la grille vers le Sanctuaire des Ruines.";
@@ -189,7 +189,7 @@ export class LevelManager {
       title: "Chambre de Gallen",
       position: new Vector3(0, 1.2, 21.5),
       radius: 3.2,
-      promptText: "[E] Écouter à la porte",
+      promptText: "[E] Ecouter a la porte",
       speaker: "Lyo & Gallen",
       getText: () => {
         if (this.saveState.bossKey) {
@@ -224,12 +224,12 @@ export class LevelManager {
     // Déclencheur interactif
     this.interactables.push({
       id: 'spawn_sign',
-      title: "Panneau de la Plaine d'Éveil",
+      title: "Panneau de la Plaine d'Eveil",
       position: new Vector3(2.4, 1.0, -3.2),
       radius: 2.2,
       promptText: "[E] Lire le panneau",
       speaker: "Panneau d'information",
-      text: "Bienvenue dans la Plaine d'Éveil ! Déplacez-vous avec ZQSD / WASD / Flèches. Tranchez les buissons avec [Espace] ou [J]. Brandissez la Lumière avec [Shift]. Lyo est retenu au Nord !"
+      text: "Bienvenue dans la Plaine d'Eveil ! Deplacez-vous avec ZQSD / WASD / Fleches. Tournez la camera avec [Clic Droit] ou [Molette] (recentrage avec [R]). Tranchez les buissons avec [Espace] ou [J]. Brandissez la Lumiere avec [Shift]. Lyo est retenu au Nord !"
     });
   }
 

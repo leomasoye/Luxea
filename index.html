@@ -260,7 +260,7 @@
       50%, 100% { opacity: 0; }
     }
 
-    /* Modals & Fullscreen Overlays (Title, Pause, GameOver) - Authentic Retro */
+    /* Modals & Fullscreen Overlays (Title, Pause, GameOver, Settings, Quit) - Authentic Retro */
     .menu-modal {
       position: absolute;
       top: 0;
@@ -276,6 +276,132 @@
       text-align: center;
     }
 
+    /* Atmospheric Vignette for Title Screen */
+    .title-screen-container {
+      background: radial-gradient(circle at center, rgba(10, 16, 28, 0.72) 0%, rgba(3, 5, 10, 0.94) 100%);
+    }
+
+    .title-content-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 20px;
+    }
+
+    /* Zelda-like Grand Logo & Entrance Animation */
+    .title-logo-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 24px;
+      animation: zelda-title-entrance 1.1s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+    }
+
+    .title-emblem {
+      font-size: 26px;
+      color: #f0b429;
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+      margin-bottom: 2px;
+      animation: retro-emblem-float 2s infinite steps(2);
+    }
+
+    @keyframes retro-emblem-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    .zelda-title-wrapper {
+      position: relative;
+      display: inline-block;
+      padding: 6px 20px;
+    }
+
+    .zelda-title {
+      font-family: 'Triforce', monospace;
+      font-size: clamp(54px, 10vw, 86px);
+      letter-spacing: 8px;
+      color: #ffe066;
+      text-shadow: 4px 4px 0 #000000, 2px 2px 0 #b38600, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+      margin: 0;
+      line-height: 1.05;
+    }
+
+    .title-subtitle {
+      font-family: 'Triforce', monospace;
+      font-size: 14px;
+      letter-spacing: 5px;
+      color: #cbd5e0;
+      text-shadow: 2px 2px 0 #000;
+      margin-top: 10px;
+      opacity: 0;
+      animation: zelda-fade-in 0.6s ease-out 0.6s forwards;
+    }
+
+    @keyframes zelda-title-entrance {
+      0% {
+        opacity: 0;
+        transform: scale(1.4) translateY(-36px);
+        filter: brightness(2);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(0.96) translateY(4px);
+        filter: brightness(1.3);
+      }
+      75% {
+        transform: scale(1.02) translateY(-2px);
+        filter: brightness(1);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: brightness(1);
+      }
+    }
+
+    @keyframes zelda-fade-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Zelda Menu List (Staggered Entrance) */
+    .title-menu-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 360px;
+      max-width: 90vw;
+      margin-top: 24px;
+    }
+
+    .btn-title-item {
+      opacity: 0;
+      transform: translateY(22px);
+      animation: zelda-btn-entrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .btn-title-item:nth-child(1) {
+      animation-delay: 0.85s;
+    }
+
+    .btn-title-item:nth-child(2) {
+      animation-delay: 1.05s;
+    }
+
+    .btn-title-item:nth-child(3) {
+      animation-delay: 1.25s;
+    }
+
+    @keyframes zelda-btn-entrance {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     /* Retro Pixel Window Frame */
     .modal-card {
       background: #0c121d;
@@ -286,6 +412,12 @@
       padding: 30px 36px;
       max-width: 500px;
       width: 90%;
+    }
+
+    .settings-card {
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
     .game-title {
@@ -315,7 +447,7 @@
       text-transform: uppercase;
       cursor: pointer;
       border-radius: 0px;
-      margin-bottom: 12px;
+      margin-bottom: 4px;
       box-shadow: 3px 3px 0px #000000;
       transition: none;
     }
@@ -327,15 +459,25 @@
       transform: translateX(-4px);
     }
 
-    .btn-retro:hover {
-      background: #2b6cb0;
-      border-color: #bee3f8 #1a365d #1a365d #bee3f8;
-      color: #ffe066;
+    .btn-retro:hover,
+    .btn-retro.active-select,
+    .btn-title-item.active-select {
+      background: #2b6cb0 !important;
+      border-color: #bee3f8 #1a365d #1a365d #bee3f8 !important;
+      color: #ffe066 !important;
     }
 
-    .btn-retro:hover .cursor-arrow {
-      opacity: 1;
+    .btn-retro:hover .cursor-arrow,
+    .btn-retro.active-select .cursor-arrow,
+    .btn-title-item.active-select .cursor-arrow {
+      opacity: 1 !important;
       transform: translateX(0);
+      animation: retro-cursor-blink 0.6s infinite steps(1);
+    }
+
+    @keyframes retro-cursor-blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
     }
 
     .btn-retro:active {
@@ -356,9 +498,21 @@
       color: #fff;
     }
 
+    .settings-section-title {
+      font-family: 'Triforce', monospace;
+      font-size: 14px;
+      letter-spacing: 2px;
+      color: #f0b429;
+      text-shadow: 2px 2px 0 #000;
+      text-align: left;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #243044;
+      padding-bottom: 4px;
+    }
+
     /* Controls Panel - Retro Window Style */
     .controls-panel {
-      margin-top: 18px;
+      margin-bottom: 18px;
       background: #080d17;
       border: 2px solid #000;
       box-shadow: inset 1px 1px 0 #334460, inset -1px -1px 0 #04060a;
@@ -368,6 +522,32 @@
       text-align: left;
       line-height: 1.8;
       color: #cbd5e0;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .control-row:last-child {
+      border-bottom: none;
+    }
+
+    .control-label {
+      font-family: 'Triforce', monospace;
+      color: #ffe066;
+      letter-spacing: 1px;
+      font-size: 13px;
+    }
+
+    .control-keys {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 12px;
     }
 
     .controls-panel strong {
@@ -443,25 +623,116 @@
   </div>
 
   <!-- Title Screen Modal -->
-  <div id="title-screen" class="menu-modal interactive">
-    <div class="modal-card">
-      <div class="game-title">LUXEA</div>
-
-      <button id="btn-start-game" class="btn-retro">
-        <span class="cursor-arrow">►</span> Commencer l'aventure
-      </button>
-      <button id="btn-sound-toggle" class="btn-retro btn-secondary" style="display: none;">
-        <span class="cursor-arrow">►</span> Son : Désactivé
-      </button>
-
-      <div class="controls-panel">
-        <div><strong>DÉPLACEMENT :</strong> <span class="key-badge">ZQSD</span> / <span class="key-badge">WASD</span> / <span class="key-badge">Flèches</span></div>
-        <div><strong>ATTAQUE :</strong> <span class="key-badge">Espace</span> ou <span class="key-badge">Clic G</span></div>
-        <div><strong>LUMIÈRE :</strong> Maintenir <span class="key-badge">Shift</span> ou <span class="key-badge">Clic D</span></div>
-        <div><strong>ROULADE :</strong> <span class="key-badge">K</span></div>
-        <div><strong>INTERAGIR :</strong> <span class="key-badge">E</span></div>
-        <div><strong>PAUSE :</strong> <span class="key-badge">Échap</span> ou <span class="key-badge">P</span></div>
+  <div id="title-screen" class="menu-modal interactive title-screen-container">
+    <div class="title-content-wrapper">
+      <!-- Zelda Grand Logo Entrance -->
+      <div class="title-logo-container">
+        <div class="title-emblem">▲</div>
+        <div class="zelda-title-wrapper">
+          <h1 class="zelda-title">LUXEA</h1>
+        </div>
+        <div class="title-subtitle">— LE SECRET DE LA LUMIERE —</div>
       </div>
+
+      <!-- Zelda Menu Buttons (Staggered Entrance) -->
+      <div class="title-menu-list">
+        <button id="btn-start-game" class="btn-retro btn-title-item active-select" data-index="0">
+          <span class="cursor-arrow">►</span> COMMENCER L'AVENTURE
+        </button>
+        <button id="btn-title-settings" class="btn-retro btn-title-item btn-secondary" data-index="1">
+          <span class="cursor-arrow">►</span> PARAMETRES
+        </button>
+        <button id="btn-title-quit" class="btn-retro btn-title-item btn-secondary" data-index="2">
+          <span class="cursor-arrow">►</span> QUITTER LE JEU
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal (Parametres & Touches) -->
+  <div id="settings-modal" class="menu-modal interactive" style="display: none;">
+    <div class="modal-card settings-card">
+      <div class="game-title" style="font-size: 32px; margin-bottom: 16px;">PARAMETRES</div>
+
+      <div class="settings-section-title">COMMANDES &amp; TOUCHES</div>
+      <div class="controls-panel">
+        <div class="control-row">
+          <span class="control-label">DEPLACEMENT</span>
+          <span class="control-keys"><span class="key-badge">ZQSD</span> / <span class="key-badge">WASD</span> / <span class="key-badge">Fleches</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">ATTAQUE EPEE</span>
+          <span class="control-keys"><span class="key-badge">Espace</span> ou <span class="key-badge">Clic G</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">RAYON DE LUMIERE</span>
+          <span class="control-keys">Maintenir <span class="key-badge">Shift</span> ou <span class="key-badge">Clic D</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">ROULADE D'ESQUIVE</span>
+          <span class="control-keys"><span class="key-badge">K</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">INTERACTION / PARLER</span>
+          <span class="control-keys"><span class="key-badge">E</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">ROTATION CAMERA</span>
+          <span class="control-keys">Maintenir <span class="key-badge">Clic D</span> ou <span class="key-badge">Molette</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">RECENTRAGE CAMERA</span>
+          <span class="control-keys"><span class="key-badge">R</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">ZOOM CAMERA</span>
+          <span class="control-keys"><span class="key-badge">Molette</span></span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">MENU PAUSE</span>
+          <span class="control-keys"><span class="key-badge">Echap</span> ou <span class="key-badge">P</span></span>
+        </div>
+      </div>
+
+      <div class="settings-section-title">OPTIONS AUDIO</div>
+      <button id="btn-settings-audio" class="btn-retro btn-secondary" style="margin-bottom: 20px;">
+        <span class="cursor-arrow">►</span> Son : Desactive
+      </button>
+
+      <button id="btn-settings-back" class="btn-retro">
+        <span class="cursor-arrow">►</span> RETOUR
+      </button>
+    </div>
+  </div>
+
+  <!-- Quit Confirmation Modal -->
+  <div id="quit-modal" class="menu-modal interactive" style="display: none;">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="game-title" style="font-size: 28px; margin-bottom: 14px;">QUITTER LE JEU ?</div>
+      <p style="color: #cbd5e0; font-size: 14px; line-height: 1.6; margin-bottom: 22px;">
+        Voulez-vous vraiment quitter l'aventure ?
+      </p>
+
+      <button id="btn-quit-confirm" class="btn-retro" style="background: #9b2c2c; border-color: #feb2b2 #63171b #63171b #feb2b2; margin-bottom: 12px;">
+        <span class="cursor-arrow">►</span> OUI, QUITTER
+      </button>
+      <button id="btn-quit-cancel" class="btn-retro btn-secondary">
+        <span class="cursor-arrow">►</span> NON, RESTER
+      </button>
+    </div>
+  </div>
+
+  <!-- Quit Goodbye Screen (si le navigateur bloque la fermeture d'onglet) -->
+  <div id="quit-goodbye-screen" class="menu-modal interactive" style="display: none;">
+    <div class="modal-card" style="max-width: 460px;">
+      <div class="game-title" style="font-size: 28px; color: #63b3ed; margin-bottom: 14px;">A BIENTOT</div>
+      <p style="color: #cbd5e0; font-size: 15px; line-height: 1.7; margin-bottom: 22px;">
+        Merci d'avoir joue a <strong>LUXEA</strong> !<br />
+        Vous pouvez fermer cet onglet en toute securite.
+      </p>
+      <button id="btn-quit-return" class="btn-retro">
+        <span class="cursor-arrow">►</span> RETOUR AU MENU PRINCIPAL
+      </button>
     </div>
   </div>
 
@@ -473,8 +744,11 @@
       <button id="btn-resume-game" class="btn-retro">
         <span class="cursor-arrow">►</span> Reprendre
       </button>
+      <button id="btn-pause-settings" class="btn-retro btn-secondary">
+        <span class="cursor-arrow">►</span> Parametres
+      </button>
       <button id="btn-pause-sound" class="btn-retro btn-secondary" style="display: none;">
-        <span class="cursor-arrow">►</span> Son : Désactivé
+        <span class="cursor-arrow">►</span> Son : Desactive
       </button>
       <button id="btn-reset-game" class="btn-retro btn-secondary">
         <span class="cursor-arrow">►</span> Recommencer au Spawn
@@ -485,9 +759,9 @@
   <!-- Game Over Modal -->
   <div id="gameover-modal" class="menu-modal interactive" style="display: none;">
     <div class="modal-card" style="border-color: #e61c38; box-shadow: inset 3px 3px 0 #ff6b81, inset -3px -3px 0 #800016, 8px 8px 0px #000;">
-      <div class="game-title" style="font-size: 36px; color: #ff4d6d; text-shadow: 4px 4px 0 #000, 2px 2px 0 #80001a; margin-bottom: 24px;">DÉFAITE</div>
+      <div class="game-title" style="font-size: 36px; color: #ff4d6d; text-shadow: 4px 4px 0 #000, 2px 2px 0 #80001a; margin-bottom: 24px;">DEFAITE</div>
       <button id="btn-respawn" class="btn-retro">
-        <span class="cursor-arrow">►</span> Réapparaître dans la Plaine
+        <span class="cursor-arrow">►</span> Reapparaitre dans la Plaine
       </button>
     </div>
   </div>

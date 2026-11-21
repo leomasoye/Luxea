@@ -15,6 +15,9 @@ export const GameState = {
   PLAYING: 'PLAYING',
   DIALOGUE: 'DIALOGUE',
   PAUSED: 'PAUSED',
+  SETTINGS: 'SETTINGS',
+  QUIT_CONFIRM: 'QUIT_CONFIRM',
+  QUIT_GOODBYE: 'QUIT_GOODBYE',
   GAMEOVER: 'GAMEOVER'
 };
 
@@ -51,6 +54,7 @@ export class GameManager {
 
     this.player = new Player(this.scene, this.audio, this.lightingManager, this.cameraManager, this.collision);
     this.ui = new UIManager(this.scene);
+    this.previousState = GameState.TITLE;
 
     // Initialisation des liaisons d'événements UI
     this.setupUIEvents();
@@ -60,29 +64,63 @@ export class GameManager {
   }
 
   setupUIEvents() {
-    // Bouton « Commencer l'aventure » (Écran Titre)
+    // Boutons de l'Écran Titre (Zelda Style)
     this.ui.btnStartGame?.addEventListener('click', () => {
       this.startGame();
     });
 
-    // Bascule de son (Écran Titre)
-    this.ui.btnSoundToggle?.addEventListener('click', () => {
+    this.ui.btnTitleSettings?.addEventListener('click', () => {
+      this.openSettings(false);
+    });
+
+    this.ui.btnTitleQuit?.addEventListener('click', () => {
+      this.openQuitModal();
+    });
+
+    // Sélection dynamique au survol de la souris
+    this.ui.titleMenuItems?.forEach((btn, idx) => {
+      btn.addEventListener('mouseenter', () => {
+        this.ui.setTitleSelection(idx);
+      });
+    });
+
+    // Boutons des Paramètres
+    this.ui.btnSettingsAudio?.addEventListener('click', () => {
       const active = this.audio.toggleMute();
       this.ui.updateSoundButton(!active);
     });
 
-    // Bouton « Reprendre » (Pause)
+    this.ui.btnSettingsBack?.addEventListener('click', () => {
+      this.closeSettings();
+    });
+
+    // Boutons de Quitter le jeu
+    this.ui.btnQuitConfirm?.addEventListener('click', () => {
+      this.confirmQuit();
+    });
+
+    this.ui.btnQuitCancel?.addEventListener('click', () => {
+      this.closeQuitModal();
+    });
+
+    this.ui.btnQuitReturn?.addEventListener('click', () => {
+      this.returnToTitle();
+    });
+
+    // Menu Pause
     this.ui.btnResumeGame?.addEventListener('click', () => {
       this.resumeGame();
     });
 
-    // Bascule de son (Pause)
+    this.ui.btnPauseSettings?.addEventListener('click', () => {
+      this.openSettings(true);
+    });
+
     this.ui.btnPauseSound?.addEventListener('click', () => {
       const active = this.audio.toggleMute();
       this.ui.updateSoundButton(!active);
     });
 
-    // Bouton « Recommencer au Spawn » (Pause)
     this.ui.btnResetGame?.addEventListener('click', () => {
       this.respawnPlayer();
     });
@@ -91,6 +129,61 @@ export class GameManager {
     this.ui.btnRespawn?.addEventListener('click', () => {
       this.respawnPlayer();
     });
+  }
+
+  openSettings(fromPause = false) {
+    this.previousState = fromPause ? GameState.PAUSED : GameState.TITLE;
+    this.state = GameState.SETTINGS;
+    this.input.flush();
+    if (fromPause) {
+      this.ui.hidePauseModal();
+    } else {
+      this.ui.hideTitleScreen();
+    }
+    this.ui.showSettings(fromPause);
+  }
+
+  closeSettings() {
+    const wasFromPause = this.ui.hideSettings();
+    this.input.flush();
+    if (wasFromPause || this.previousState === GameState.PAUSED) {
+      this.state = GameState.PAUSED;
+      this.ui.showPauseModal();
+    } else {
+      this.state = GameState.TITLE;
+      this.ui.showTitleScreen();
+    }
+  }
+
+  openQuitModal() {
+    this.state = GameState.QUIT_CONFIRM;
+    this.input.flush();
+    this.ui.showQuitModal();
+  }
+
+  closeQuitModal() {
+    this.ui.hideQuitModal();
+    this.input.flush();
+    this.state = GameState.TITLE;
+  }
+
+  confirmQuit() {
+    try {
+      window.close();
+    } catch {
+      // Ignorer si bloqué par les restrictions de sécurité du navigateur
+    }
+    this.state = GameState.QUIT_GOODBYE;
+    this.input.flush();
+    this.ui.showQuitGoodbye();
+  }
+
+  returnToTitle() {
+    this.ui.hideQuitGoodbye();
+    this.ui.hideQuitModal();
+    this.input.flush();
+    this.state = GameState.TITLE;
+    this.ui.showTitleScreen();
   }
 
   startGame() {
@@ -128,12 +221,15 @@ export class GameManager {
   respawnPlayer() {
     this.player.reset(0, 0, -4);
     if (this.cameraManager) {
-      this.cameraManager.snapTo(this.player.getPosition());
+      this.cameraManager.snapTo(this.player.getPosition(), -Math.PI / 2);
     }
     this.ui.updateHealth(this.player.health);
     this.ui.updateLightGauge(this.player.lightGauge, false);
     this.ui.hideGameOver();
     this.ui.hidePauseModal();
+    this.ui.hideSettings();
+    this.ui.hideQuitModal();
+    this.ui.hideQuitGoodbye();
     this.ui.hideInteractionPrompt();
     this.ui.hideDialogue();
     this.input.flush();
@@ -150,7 +246,21 @@ export class GameManager {
       this.input.update();
 
       // 3. Gestion des états
-      if (this.state === GameState.PLAYING) {
+      if (this.state === GameState.TITLE) {
+        // Navigation clavier du menu titre gérée directement par UIManager.setupKeyboardNavigation
+      } else if (this.state === GameState.SETTINGS) {
+        if (this.input.consumePause() || this.input.isKeyJustPressed('Backspace')) {
+          this.closeSettings();
+        }
+      } else if (this.state === GameState.QUIT_CONFIRM) {
+        if (this.input.consumePause()) {
+          this.closeQuitModal();
+        }
+      } else if (this.state === GameState.QUIT_GOODBYE) {
+        if (this.input.consumePause() || this.input.isKeyJustPressed('Enter')) {
+          this.returnToTitle();
+        }
+      } else if (this.state === GameState.PLAYING) {
         this.updatePlaying(dt);
       } else if (this.state === GameState.DIALOGUE) {
         this.updateDialogue(dt);
@@ -171,6 +281,9 @@ export class GameManager {
 
       // 5. Rendu de la scène 3D
       this.scene.render();
+
+      // 6. Sauvegarde des touches en fin de frame pour détection de front montant
+      this.input.postUpdate();
     });
   }
 
@@ -211,8 +324,18 @@ export class GameManager {
     // F. Mise à jour des objets du niveau (pickups de cœurs, portes)
     this.level.update(dt, this.player);
 
-    // G. Mise à jour de la caméra zénithale lissée
-    this.cameraManager.update(this.player.getPosition(), dt);
+    // G. Mise à jour de la caméra intelligente semi-contrainte
+    if (this.input.consumeRecenter()) {
+      this.cameraManager.recenter(this.player.facingAngle);
+    }
+    const cameraInput = this.input.consumeCameraInput();
+    this.cameraManager.update(
+      this.player.getPosition(),
+      this.player.facingAngle,
+      this.player.isMoving,
+      cameraInput,
+      dt
+    );
 
     // H. Détection des interactions environnementales (Portes, Panneau, Caverne)
     const nearest = this.level.getNearestInteractable(this.player.getPosition());
@@ -234,8 +357,18 @@ export class GameManager {
   }
 
   updateDialogue(dt) {
-    // La caméra continue de cadrer la scène
-    this.cameraManager.update(this.player.getPosition(), dt);
+    // La caméra continue de cadrer la scène et peut pivoter
+    if (this.input.consumeRecenter()) {
+      this.cameraManager.recenter(this.player.facingAngle);
+    }
+    const cameraInput = this.input.consumeCameraInput();
+    this.cameraManager.update(
+      this.player.getPosition(),
+      this.player.facingAngle,
+      false,
+      cameraInput,
+      dt
+    );
 
     // [E] ou [Espace] pour fermer / avancer le dialogue
     if (this.input.consumeInteract() || this.input.consumeAttack()) {

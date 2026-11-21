@@ -1,4 +1,4 @@
-﻿import {
+import {
   TransformNode,
   MeshBuilder,
   StandardMaterial,
@@ -51,6 +51,7 @@ export class Player {
     this.torchSpeedMultiplier = 0.65;
     this.facingAngle = 0; // Regarde vers le Nord au départ
     this.targetFacingAngle = 0;
+    this.isMoving = false;
 
     // Animation procédurale de marche
     this.walkAnimTimer = 0;
@@ -248,9 +249,10 @@ export class Player {
     this.dodgeTimer = this.dodgeDuration;
     this.dodgeCooldown = 0.48; // Temps d'attente avant la prochaine esquive
 
-    // Direction de l'esquive : soit la direction du déplacement actuel, soit la direction de regard
+    // Direction de l'esquive : soit la direction du déplacement actuel (relative à la caméra), soit la direction de regard
     if (moveVector && (moveVector.x !== 0 || moveVector.z !== 0)) {
-      this.dodgeDirection.set(moveVector.x, 0, moveVector.z).normalize();
+      const worldDir = this.camera ? this.camera.getWorldDirection(moveVector.x, moveVector.z) : moveVector;
+      this.dodgeDirection.set(worldDir.x, 0, worldDir.z).normalize();
     } else {
       this.dodgeDirection.set(Math.sin(this.facingAngle), 0, Math.cos(this.facingAngle));
     }
@@ -296,6 +298,7 @@ export class Player {
     this.health = this.maxHealth;
     this.lightGauge = 1.0;
     this.isDodgeRolling = false;
+    this.isMoving = false;
     this.invulnerableTimer = 0;
     this.setPosition(x, y, z);
     this.visualRoot.rotation.x = 0;
@@ -358,6 +361,7 @@ export class Player {
       // Déplacement normal
       const mv = input.moveVector;
       const isMoving = mv.x !== 0 || mv.z !== 0;
+      this.isMoving = isMoving;
 
       if (isMoving) {
         // Vitesse ajustée en mode torche ou pendant l'attaque
@@ -365,9 +369,12 @@ export class Player {
         if (this.isTorchMode) currentSpeed *= this.torchSpeedMultiplier;
         if (this.weapon.isSlashing) currentSpeed *= 0.45;
 
+        // Projection du vecteur de commande dans le repère de la caméra
+        const worldDir = this.camera ? this.camera.getWorldDirection(mv.x, mv.z) : mv;
+
         const moveDelta = {
-          x: mv.x * currentSpeed * dt,
-          z: mv.z * currentSpeed * dt
+          x: worldDir.x * currentSpeed * dt,
+          z: worldDir.z * currentSpeed * dt
         };
 
         if (this.collision) {
@@ -379,8 +386,8 @@ export class Player {
           this.root.position.z += moveDelta.z;
         }
 
-        // Angle de rotation vers la direction du mouvement
-        this.targetFacingAngle = Math.atan2(mv.x, mv.z);
+        // Angle de rotation vers la direction du mouvement monde
+        this.targetFacingAngle = Math.atan2(worldDir.x, worldDir.z);
 
         // Animation procédurale de marche (balancement rétro)
         this.walkAnimTimer += dt * 14;
@@ -407,19 +414,29 @@ export class Player {
       this.facingAngle += angleDiff * Math.min(1.0, dt * 18);
       this.visualRoot.rotation.y = this.facingAngle;
 
-      // Cinétique corporelle dynamique lors de la frappe à l'épée
+      // Cinétique corporelle dynamique lors de la frappe à l'épée (Arc de cercle parfait)
       if (this.weapon.isSlashing) {
         const slashP = this.weapon.getProgress();
-        if (slashP >= 0.14 && slashP < 0.64) {
-          const u = (slashP - 0.14) / 0.50;
-          const lunge = Math.sin(u * Math.PI);
-          // Fente vers l'avant et inclinaison du torse avec le coup
-          this.visualRoot.position.z = lunge * 0.16;
-          this.visualRoot.rotation.x = lunge * 0.12;
-          this.visualRoot.rotation.y = this.facingAngle - (1.0 - 2.0 * u) * 0.22;
-        } else {
+        if (slashP < 0.10) {
+          // Windup : le torse pivote vers la droite pour amorcer l'arc
+          const w = slashP / 0.10;
           this.visualRoot.position.z = 0;
           this.visualRoot.rotation.x = 0;
+          this.visualRoot.rotation.y = this.facingAngle + w * 0.22;
+        } else if (slashP < 0.62) {
+          // Frappe : rotation fluide du buste guidant l'arc de cercle parfait (sans projection avant excessive)
+          const u = (slashP - 0.10) / 0.52;
+          this.visualRoot.position.z = Math.sin(u * Math.PI) * 0.06;
+          this.visualRoot.rotation.x = 0;
+          // Balayage rotatif franc et centré de droite (+0.22) à gauche (-0.35)
+          this.visualRoot.rotation.y = this.facingAngle + 0.22 - u * 0.57;
+        } else {
+          // Retour doux à la garde
+          const u = (slashP - 0.62) / 0.38;
+          const r = 1.0 - u;
+          this.visualRoot.position.z = r * 0.03;
+          this.visualRoot.rotation.x = 0;
+          this.visualRoot.rotation.y = this.facingAngle - r * 0.35;
         }
       } else {
         this.visualRoot.position.z = 0;
