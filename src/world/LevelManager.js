@@ -170,10 +170,10 @@ export class LevelManager {
     topLintel.parent = this.root;
     topLintel.freezeWorldMatrix();
 
-    // Fond mural sombre arrière empêchant de voir le vide derrière la porte
-    const backWall = MeshBuilder.CreateBox('boss_back_wall', { width: 4.8, height: 5.5, depth: 1.2 }, this.scene);
+    // Fond mural sombre arrière empêchant de voir le vide derrière la porte (hauteur adaptée aux murs prison)
+    const backWall = MeshBuilder.CreateBox('boss_back_wall', { width: 5.6, height: 12.0, depth: 1.2 }, this.scene);
     backWall.material = portalMat;
-    backWall.position.set(0, 2.75, 25.2);
+    backWall.position.set(0, 6.0, 25.2);
     backWall.parent = this.root;
     backWall.freezeWorldMatrix();
 

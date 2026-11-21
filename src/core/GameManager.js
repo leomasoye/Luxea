@@ -54,6 +54,7 @@ export class GameManager {
 
     this.player = new Player(this.scene, this.audio, this.lightingManager, this.cameraManager, this.collision);
     this.ui = new UIManager(this.scene);
+    this.player.setUIManager(this.ui);
     this.previousState = GameState.TITLE;
 
     // Initialisation des liaisons d'événements UI

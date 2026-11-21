@@ -28,8 +28,12 @@ export class Player {
     this.root = new TransformNode('PlayerRoot', this.scene);
     this.root.position = new Vector3(0, 0, -4); // Point d'apparition au sud du Hub
 
+    // Pivot de roulade au sol (maintient la rotation au-dessus du sol sans jamais s'enfoncer)
+    this.rollNode = new TransformNode('PlayerRollNode', this.scene);
+    this.rollNode.parent = this.root;
+
     this.visualRoot = new TransformNode('PlayerVisual', this.scene);
-    this.visualRoot.parent = this.root;
+    this.visualRoot.parent = this.rollNode;
 
     // Composants visuels du corps
     this.bodyMesh = null;
@@ -66,13 +70,20 @@ export class Player {
     this.walkAnimTimer = 0;
     this.stepAudioTimer = 0;
 
-    // Esquive / Roulade (K)
+    // Esquive / Roulade (K) — 0.75s de pause entre les roulades
     this.isDodgeRolling = false;
-    this.dodgeDuration = 0.28;
+    this.dodgeDuration = 0.38;
     this.dodgeTimer = 0;
-    this.dodgeSpeed = 16.0;
+    this.dodgeSpeed = 15.0;
     this.dodgeCooldown = 0;
     this.dodgeDirection = new Vector3(0, 0, 1);
+
+    // Combat — 0.5s de cooldown entre les coups d'épée
+    this.attackCooldown = 0;
+
+    // Effet visuel de soin
+    this.healFlashTimer = 0;
+    this.ui = null;
 
     // Système de vie (6 demi-cœurs = 3 cœurs pleins)
     this.maxHealth = 6;
@@ -131,15 +142,15 @@ export class Player {
     this.bodyMesh.position.y = 0.82;
     this.bodyMesh.parent = this.visualRoot;
 
-    // Ceinture
+    // Ceinture (attachée au torse)
     const belt = MeshBuilder.CreateBox('zelya_belt', {
       width: 0.67,
       height: 0.12,
       depth: 0.47
     }, this.scene);
     belt.material = leatherMaterial;
-    belt.position.y = 0.58;
-    belt.parent = this.visualRoot;
+    belt.position.set(0, -0.24, 0);
+    belt.parent = this.bodyMesh;
 
     // Boucle de ceinture (dorée)
     const buckleMat = new StandardMaterial('mat_buckle', this.scene);
@@ -150,10 +161,10 @@ export class Player {
       depth: 0.50
     }, this.scene);
     buckle.material = buckleMat;
-    buckle.position.y = 0.58;
-    buckle.parent = this.visualRoot;
+    buckle.position.set(0, -0.24, 0.02);
+    buckle.parent = this.bodyMesh;
 
-    // 2. Tête
+    // 2. Tête (articulée)
     this.headMesh = MeshBuilder.CreateBox('zelya_head', {
       width: 0.52,
       height: 0.52,
@@ -163,28 +174,28 @@ export class Player {
     this.headMesh.position.y = 1.48;
     this.headMesh.parent = this.visualRoot;
 
-    // Yeux rétro
+    // Yeux rétro (attachés au visage)
     const eyeMat = new StandardMaterial('mat_eye', this.scene);
     eyeMat.diffuseColor = new Color3(0.1, 0.1, 0.15);
     const leftEye = MeshBuilder.CreateBox('eye_l', { width: 0.08, height: 0.1, depth: 0.05 }, this.scene);
     leftEye.material = eyeMat;
-    leftEye.position.set(-0.14, 1.5, 0.26);
-    leftEye.parent = this.visualRoot;
+    leftEye.position.set(-0.14, 0.02, 0.26);
+    leftEye.parent = this.headMesh;
 
     const rightEye = MeshBuilder.CreateBox('eye_r', { width: 0.08, height: 0.1, depth: 0.05 }, this.scene);
     rightEye.material = eyeMat;
-    rightEye.position.set(0.14, 1.5, 0.26);
-    rightEye.parent = this.visualRoot;
+    rightEye.position.set(0.14, 0.02, 0.26);
+    rightEye.parent = this.headMesh;
 
-    // 3. Chevelure rétro avec mèche stylisée
+    // 3. Chevelure rétro (attachée à la tête)
     this.hairMesh = MeshBuilder.CreateBox('zelya_hair_top', {
       width: 0.58,
       height: 0.24,
       depth: 0.56
     }, this.scene);
     this.hairMesh.material = hairMaterial;
-    this.hairMesh.position.y = 1.76;
-    this.hairMesh.parent = this.visualRoot;
+    this.hairMesh.position.set(0, 0.28, 0);
+    this.hairMesh.parent = this.headMesh;
 
     this.hairBack = MeshBuilder.CreateBox('zelya_hair_back', {
       width: 0.58,
@@ -192,8 +203,8 @@ export class Player {
       depth: 0.2
     }, this.scene);
     this.hairBack.material = hairMaterial;
-    this.hairBack.position.set(0, 1.48, -0.22);
-    this.hairBack.parent = this.visualRoot;
+    this.hairBack.position.set(0, 0, -0.22);
+    this.hairBack.parent = this.headMesh;
 
     // 4. Jambes / Bottes articulées (pivots aux hanches à y = 0.44)
     this.legLRoot = new TransformNode('zelya_leg_l_root', this.scene);
@@ -272,6 +283,10 @@ export class Player {
     this.collision = collisionManager;
   }
 
+  setUIManager(ui) {
+    this.ui = ui;
+  }
+
   // Position absolue dans l'espace 3D
   getPosition() {
     return this.root.position;
@@ -281,12 +296,14 @@ export class Player {
     this.root.position.set(x, y, z);
   }
 
-  // Déclenche l'attaque à l'épée
+  // Déclenche l'attaque à l'épée avec cooldown de 0.5s anti-spam
   attack() {
-    if (this.isDodgeRolling) return false;
+    if (this.isDodgeRolling || this.attackCooldown > 0 || this.weapon.isSlashing) return false;
 
     const started = this.weapon.startSlash();
     if (started) {
+      // 0.5s de cooldown strict entre les coups d'épée (durée frappe + 0.5s de pause)
+      this.attackCooldown = this.weapon.slashDuration + 0.5;
       this.audio.playSwordSwing();
 
       // Dépense une petite quantité de lumière si disponible
@@ -298,13 +315,14 @@ export class Player {
     return started;
   }
 
-  // Déclenche la roulade / esquive (K)
+  // Déclenche la roulade / esquive (K) avec cooldown strict de 0.75s entre les roulades
   dodge(moveVector) {
     if (this.isDodgeRolling || this.dodgeCooldown > 0) return false;
 
     this.isDodgeRolling = true;
     this.dodgeTimer = this.dodgeDuration;
-    this.dodgeCooldown = 0.48; // Temps d'attente avant la prochaine esquive
+    // 0.75s entre les roulades : durée de roulade + 0.75s
+    this.dodgeCooldown = this.dodgeDuration + 0.75;
 
     // Direction de l'esquive : soit la direction du déplacement actuel (relative à la caméra), soit la direction de regard
     if (moveVector && (moveVector.x !== 0 || moveVector.z !== 0)) {
@@ -314,8 +332,55 @@ export class Player {
       this.dodgeDirection.set(Math.sin(this.facingAngle), 0, Math.cos(this.facingAngle));
     }
 
+    // Alignement immédiat du modèle vers la trajectoire pour une roulade au sol parfaitement orientée
+    this.facingAngle = Math.atan2(this.dodgeDirection.x, this.dodgeDirection.z);
+    this.targetFacingAngle = this.facingAngle;
+    if (this.rollNode) this.rollNode.rotation.y = this.facingAngle;
+    this.visualRoot.rotation.y = 0;
+
+    // Particules de poussière au sol au démarrage de la roulade
+    this.spawnRollDust();
+
     this.audio.playRoll();
     return true;
+  }
+
+  // Particules de poussière rétro au départ d'une roulade
+  spawnRollDust() {
+    const dustMat = new StandardMaterial('mat_roll_dust', this.scene);
+    dustMat.diffuseColor = new Color3(0.72, 0.65, 0.52);
+    dustMat.specularColor = new Color3(0, 0, 0);
+
+    const pos = this.root.position;
+    for (let i = 0; i < 4; i++) {
+      const puff = MeshBuilder.CreateBox('roll_dust', { width: 0.16, height: 0.14, depth: 0.16 }, this.scene);
+      puff.material = dustMat;
+      puff.position.set(
+        pos.x + (Math.random() - 0.5) * 0.4,
+        0.08 + Math.random() * 0.12,
+        pos.z + (Math.random() - 0.5) * 0.4
+      );
+
+      const velX = -this.dodgeDirection.x * 1.5 + (Math.random() - 0.5) * 0.8;
+      const velZ = -this.dodgeDirection.z * 1.5 + (Math.random() - 0.5) * 0.8;
+      let life = 0.28;
+
+      const obs = this.scene.onBeforeRenderObservable.add(() => {
+        const dt = 0.016;
+        life -= dt;
+        puff.position.x += velX * dt;
+        puff.position.z += velZ * dt;
+        puff.position.y += 0.4 * dt;
+        const scale = Math.max(0.01, life / 0.28);
+        puff.scaling.set(scale, scale, scale);
+
+        if (life <= 0) {
+          this.scene.onBeforeRenderObservable.remove(obs);
+          puff.dispose();
+          if (dustMat) dustMat.dispose();
+        }
+      });
+    }
   }
 
   // Reçoit des dégâts
@@ -346,9 +411,69 @@ export class Player {
     return true;
   }
 
+  // Soin avec effets visuels (particules étincelantes 3D, aura d'émeraude et feedback HUD)
   heal(amount = 2) {
     this.health = Math.min(this.maxHealth, this.health + amount);
+    this.healFlashTimer = 0.55; // Durée de l'aura de guérison verte sur la tunique
+    this.spawnHealingParticles();
     this.audio.playHeartPickup();
+
+    if (this.ui) {
+      this.ui.triggerHealEffect();
+    }
+  }
+
+  // Gerbe de particules étincelantes 3D montant en spirale autour de Zelya lors du soin
+  spawnHealingParticles() {
+    const healMat = new StandardMaterial('mat_heal_sparkle', this.scene);
+    healMat.diffuseColor = new Color3(0.2, 0.95, 0.4);
+    healMat.emissiveColor = new Color3(0.3, 1.0, 0.5); // Brillance magique rétro
+    healMat.specularColor = new Color3(1, 1, 1);
+
+    const pos = this.root.position;
+    const count = 12;
+
+    for (let i = 0; i < count; i++) {
+      const sparkle = MeshBuilder.CreateBox('heal_sparkle', {
+        width: 0.12,
+        height: 0.12,
+        depth: 0.12
+      }, this.scene);
+      sparkle.material = healMat;
+
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+      const radius = 0.35 + Math.random() * 0.45;
+      let curY = 0.15 + Math.random() * 0.35;
+
+      sparkle.position.set(
+        pos.x + Math.cos(angle) * radius,
+        curY,
+        pos.z + Math.sin(angle) * radius
+      );
+
+      let life = 0.65;
+      let rotSpeed = 3.5 + Math.random() * 2.5;
+
+      const obs = this.scene.onBeforeRenderObservable.add(() => {
+        const dt = 0.016;
+        life -= dt;
+        curY += 1.8 * dt; // Montée gracieuse
+        sparkle.position.y = curY;
+        sparkle.position.x += Math.cos(angle + (0.65 - life) * rotSpeed) * 0.6 * dt;
+        sparkle.position.z += Math.sin(angle + (0.65 - life) * rotSpeed) * 0.6 * dt;
+        sparkle.rotation.y += 4 * dt;
+        sparkle.rotation.x += 3 * dt;
+
+        const s = Math.max(0.001, (life / 0.65) * 1.2);
+        sparkle.scaling.set(s, s, s);
+
+        if (life <= 0) {
+          this.scene.onBeforeRenderObservable.remove(obs);
+          sparkle.dispose();
+          if (i === count - 1 && healMat) healMat.dispose();
+        }
+      });
+    }
   }
 
   reset(x = 0, y = 0, z = -4) {
@@ -358,25 +483,35 @@ export class Player {
     this.isMoving = false;
     this.invulnerableTimer = 0;
     this.setPosition(x, y, z);
+    if (this.rollNode) {
+      this.rollNode.position.set(0, 0, 0);
+      this.rollNode.rotation.set(0, 0, 0);
+    }
     this.visualRoot.rotation.x = 0;
     this.visualRoot.rotation.z = 0;
+    this.visualRoot.position.y = 0;
     this.visualRoot.position.z = 0;
-    if (this.legLRoot) { this.legLRoot.rotation.x = 0; this.legLRoot.position.y = 0.44; }
-    if (this.legRRoot) { this.legRRoot.rotation.x = 0; this.legRRoot.position.y = 0.44; }
-    if (this.armLRoot) { this.armLRoot.rotation.x = 0; this.armLRoot.rotation.y = 0; this.armLRoot.rotation.z = 0; }
+    this.visualRoot.scaling.set(1, 1, 1);
+    if (this.weapon) this.weapon.root.scaling.set(1, 1, 1);
+    if (this.legLRoot) { this.legLRoot.position.set(-0.18, 0.44, 0); this.legLRoot.rotation.set(0, 0, 0); }
+    if (this.legRRoot) { this.legRRoot.position.set(0.18, 0.44, 0); this.legRRoot.rotation.set(0, 0, 0); }
+    if (this.armLRoot) { this.armLRoot.position.set(-0.42, 1.05, 0); this.armLRoot.rotation.set(0, 0, 0); }
     if (this.armRRoot) {
+      this.armRRoot.position.set(0.42, 1.05, 0);
       this.armRRoot.rotation.x = -0.30;
       this.armRRoot.rotation.y = 0.10;
       this.armRRoot.rotation.z = 0.12;
     }
-    if (this.bodyMesh) { this.bodyMesh.rotation.x = 0; this.bodyMesh.rotation.y = 0; this.bodyMesh.rotation.z = 0; }
-    if (this.headMesh) { this.headMesh.rotation.x = 0; this.headMesh.rotation.y = 0; }
+    if (this.bodyMesh) { this.bodyMesh.position.set(0, 0.82, 0); this.bodyMesh.rotation.set(0, 0, 0); }
+    if (this.headMesh) { this.headMesh.position.set(0, 1.48, 0); this.headMesh.rotation.set(0, 0, 0); }
     if (this.hairBack) { this.hairBack.rotation.x = 0; }
   }
 
   update(input, dt) {
     // 1. Gestion des timers (cooldowns & invulnérabilité)
     if (this.dodgeCooldown > 0) this.dodgeCooldown -= dt;
+    if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
     if (this.invulnerableTimer > 0) {
       this.invulnerableTimer -= dt;
       // Clignotement visuel de dégâts
@@ -385,7 +520,16 @@ export class Player {
       this.bodyMesh.material = mat;
       if (this.sleeveL) this.sleeveL.material = mat;
       if (this.sleeveR) this.sleeveR.material = mat;
+    } else if (this.healFlashTimer > 0) {
+      this.healFlashTimer -= dt;
+      // Lueur d'émeraude régénérante sur la tunique
+      const glow = Math.sin(Math.min(1.0, this.healFlashTimer / 0.55) * Math.PI);
+      this.tunicMaterial.emissiveColor.set(0.12 * glow, 0.78 * glow, 0.28 * glow);
+      this.bodyMesh.material = this.tunicMaterial;
+      if (this.sleeveL) this.sleeveL.material = this.tunicMaterial;
+      if (this.sleeveR) this.sleeveR.material = this.tunicMaterial;
     } else {
+      this.tunicMaterial.emissiveColor.set(0, 0, 0);
       this.bodyMesh.material = this.tunicMaterial;
       if (this.sleeveL) this.sleeveL.material = this.tunicMaterial;
       if (this.sleeveR) this.sleeveR.material = this.tunicMaterial;
@@ -402,15 +546,19 @@ export class Player {
       this.lightGauge = Math.max(0.05, this.lightGauge - this.torchDrainRate * dt);
     }
 
-    // 3. Déplacement & Roulade
+    // 3. Déplacement & Roulade au sol en boule
     if (this.isDodgeRolling) {
       this.dodgeTimer -= dt;
-      const progress = 1 - (this.dodgeTimer / this.dodgeDuration);
+      const progress = Math.min(1.0, Math.max(0.0, 1.0 - (this.dodgeTimer / this.dodgeDuration)));
+
+      // Courbe de vitesse sportive (accélération initiale, amorti en sortie)
+      const speedMult = Math.sin(progress * Math.PI) * 1.35 + 0.35;
+      const currentDodgeSpeed = this.dodgeSpeed * speedMult;
 
       // Translation rapide avec résolution de collisions
       const moveDelta = {
-        x: this.dodgeDirection.x * this.dodgeSpeed * dt,
-        z: this.dodgeDirection.z * this.dodgeSpeed * dt
+        x: this.dodgeDirection.x * currentDodgeSpeed * dt,
+        z: this.dodgeDirection.z * currentDodgeSpeed * dt
       };
 
       if (this.collision) {
@@ -422,21 +570,83 @@ export class Player {
         this.root.position.z += moveDelta.z;
       }
 
-      // Animation procédurale de roulade (plongeon avant + compression)
-      this.visualRoot.rotation.x = progress * Math.PI * 2;
-      this.visualRoot.scaling.set(0.85, 0.7, 0.85);
+      // Mise en boule compacte SUR le sol sans rétrécissement (échelle 100% conservée) :
+      // Transition rapide au début (0 à 0.10) et maintien en boule jusqu'à la fin (0.90 à 1.0)
+      const tuckIn = Math.min(1.0, progress / 0.10);
+      const tuckOut = Math.min(1.0, (1.0 - progress) / 0.10);
+      const ball = Math.min(tuckIn, tuckOut);
 
-      if (this.legLRoot) this.legLRoot.rotation.x = 0;
-      if (this.legRRoot) this.legRRoot.rotation.x = 0;
-      if (this.armLRoot) { this.armLRoot.rotation.x = 0.5; this.armLRoot.rotation.z = -0.1; }
-      if (this.armRRoot && !this.weapon.isSlashing) { this.armRRoot.rotation.x = 0.5; this.armRRoot.rotation.z = 0.1; }
+      // Rayon naturel du corps recroquevillé en boule (~0.52m sans aucun rapetissement)
+      const R = 0.52;
+
+      // A. Le pivot de rotation rollNode est placé au centre de gravité de la boule au sol
+      // Le bas du personnage reste STRICTEMENT au niveau du sol (aucun enfoncement)
+      this.rollNode.position.set(0, (R + 0.02) * ball, 0);
+      this.rollNode.rotation.y = this.facingAngle;
+      // Rotation complète 360° vers l'avant SUR le sol autour du centre de la boule
+      this.rollNode.rotation.x = progress * Math.PI * 2;
+
+      // B. Le personnage est centré dans la boule
+      this.visualRoot.position.set(0, -R * ball, 0);
+      this.visualRoot.rotation.set(0, 0, 0);
+
+      // C. CONSERVATION TOTALE DE LA TAILLE ET DU VOLUME : Zéro rétrécissement artificiel
+      this.visualRoot.scaling.set(1.0, 1.0, 1.0);
+      if (this.weapon) this.weapon.root.scaling.set(1.0, 1.0, 1.0);
+
+      // D. Tous les membres se recroquevillent de manière anatomique naturelle en boule serrée
+      if (this.legLRoot) {
+        this.legLRoot.position.set(-0.18, 0.44 + ball * 0.16, -ball * 0.08);
+        this.legLRoot.rotation.x = -ball * 2.2;
+      }
+      if (this.legRRoot) {
+        this.legRRoot.position.set(0.18, 0.44 + ball * 0.16, -ball * 0.08);
+        this.legRRoot.rotation.x = -ball * 2.2;
+      }
+      if (this.armLRoot) {
+        this.armLRoot.position.set(-0.42, 1.05 - ball * 0.32, ball * 0.12);
+        this.armLRoot.rotation.x = -ball * 2.1;
+        this.armLRoot.rotation.z = -ball * 0.25;
+      }
+      if (this.armRRoot) {
+        this.armRRoot.position.set(0.42, 1.05 - ball * 0.32, ball * 0.12);
+        this.armRRoot.rotation.x = -ball * 2.1;
+        this.armRRoot.rotation.z = ball * 0.25;
+      }
+      if (this.bodyMesh) {
+        this.bodyMesh.position.set(0, 0.82 - ball * 0.32, ball * 0.08);
+        this.bodyMesh.rotation.x = ball * 0.75;
+      }
+      if (this.headMesh) {
+        this.headMesh.position.set(0, 1.48 - ball * 0.52, ball * 0.22);
+        this.headMesh.rotation.x = ball * 1.20;
+      }
+      if (this.hairBack) {
+        this.hairBack.rotation.x = -ball * 0.60;
+      }
 
       if (this.dodgeTimer <= 0) {
         this.isDodgeRolling = false;
-        this.visualRoot.rotation.x = 0;
+        this.rollNode.position.set(0, 0, 0);
+        this.rollNode.rotation.set(0, 0, 0);
+        this.visualRoot.position.set(0, 0, 0);
+        this.visualRoot.rotation.set(0, this.facingAngle, 0);
         this.visualRoot.scaling.set(1, 1, 1);
+        if (this.bodyMesh) { this.bodyMesh.position.set(0, 0.82, 0); this.bodyMesh.rotation.x = 0; }
+        if (this.headMesh) { this.headMesh.position.set(0, 1.48, 0); this.headMesh.rotation.x = 0; }
+        if (this.hairBack) { this.hairBack.rotation.x = 0; }
+        if (this.legLRoot) { this.legLRoot.position.set(-0.18, 0.44, 0); this.legLRoot.rotation.x = 0; }
+        if (this.legRRoot) { this.legRRoot.position.set(0.18, 0.44, 0); this.legRRoot.rotation.x = 0; }
+        if (this.armLRoot) { this.armLRoot.position.set(-0.42, 1.05, 0); this.armLRoot.rotation.set(0, 0, 0); }
+        if (this.armRRoot) { this.armRRoot.position.set(0.42, 1.05, 0); this.armRRoot.rotation.set(-0.30, 0.10, 0.12); }
+        if (this.weapon) { this.weapon.root.scaling.set(1, 1, 1); }
       }
     } else {
+      // Déplacement normal : rollNode reste neutre à l'origine
+      if (this.rollNode) {
+        this.rollNode.position.set(0, 0, 0);
+        this.rollNode.rotation.set(0, 0, 0);
+      }
       // Déplacement normal
       const mv = input.moveVector;
       const isMoving = mv.x !== 0 || mv.z !== 0;

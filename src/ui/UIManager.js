@@ -116,14 +116,37 @@ export class UIManager {
       if (!heartEl) continue;
 
       const heartHp = health - (i * 2);
+      const isPopping = heartEl.classList.contains('heart-heal-pop');
       if (heartHp >= 2) {
-        heartEl.className = 'heart-icon'; // Plein
+        heartEl.className = 'heart-icon' + (isPopping ? ' heart-heal-pop' : ''); // Plein
       } else if (heartHp === 1) {
-        heartEl.className = 'heart-icon half'; // Demi-cœur
+        heartEl.className = 'heart-icon half' + (isPopping ? ' heart-heal-pop' : ''); // Demi-cœur
       } else {
-        heartEl.className = 'heart-icon empty'; // Vide
+        heartEl.className = 'heart-icon empty' + (isPopping ? ' heart-heal-pop' : ''); // Vide
       }
     }
+  }
+
+  // Déclenche l'effet visuel de soin (flash vert apaisant et pulsation des cœurs)
+  triggerHealEffect() {
+    const flash = document.getElementById('heal-screen-flash');
+    if (flash) {
+      flash.classList.add('active');
+      setTimeout(() => {
+        flash.classList.remove('active');
+      }, 350);
+    }
+
+    this.hearts.forEach(h => {
+      if (h) {
+        h.classList.remove('heart-heal-pop');
+        void h.offsetWidth; // Forcer le reflow CSS
+        h.classList.add('heart-heal-pop');
+        setTimeout(() => {
+          h.classList.remove('heart-heal-pop');
+        }, 550);
+      }
+    });
   }
 
   // Met à jour la jauge de lumière de l'épée (0.0 à 1.0)

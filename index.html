@@ -99,6 +99,34 @@
       background-image: url('/assets/textures/ui/heart-empty.svg');
     }
 
+    @keyframes heartHealPop {
+      0% { transform: scale(1); filter: drop-shadow(2px 2px 0px #000); }
+      40% { transform: scale(1.42); filter: drop-shadow(0 0 10px #48ff80) drop-shadow(2px 2px 0px #000); }
+      100% { transform: scale(1); filter: drop-shadow(2px 2px 0px #000); }
+    }
+
+    .heart-heal-pop {
+      animation: heartHealPop 0.55s ease-out;
+    }
+
+    /* Soothing Green Heal Screen Flash */
+    #heal-screen-flash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(72, 255, 128, 0) 50%, rgba(72, 255, 128, 0.28) 100%);
+      opacity: 0;
+      transition: opacity 0.12s ease-out;
+      z-index: 6;
+    }
+
+    #heal-screen-flash.active {
+      opacity: 1;
+    }
+
     /* Retro Light Gauge (No text label, pixel lantern icon) */
     .retro-gauge-container {
       display: flex;
@@ -584,6 +612,9 @@
   <canvas id="renderCanvas"></canvas>
 
   <div id="ui-overlay">
+    <!-- Soothing Green Heal Screen Flash -->
+    <div id="heal-screen-flash"></div>
+
     <!-- Top HUD -->
     <div id="hud">
       <div class="hud-status-col">

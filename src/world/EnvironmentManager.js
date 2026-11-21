@@ -112,7 +112,10 @@ export class EnvironmentManager {
     foliageMat.diffuseColor = new Color3(0.14, 0.48, 0.22);
     foliageMat.freeze();
 
-    // Création des parois rocheuses périmétriques (Est, Ouest, Sud, Nord avec brèches pour les passages)
+    // Création des parois rocheuses périmétriques massives (Style forteresse / prison haute)
+    const WALL_HEIGHT = 12.0;
+    const WALL_Y = WALL_HEIGHT / 2; // 6.0
+
     const createCliffBlock = (name, w, h, d, x, y, z) => {
       const block = MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, this.scene);
       block.material = rockMat;
@@ -122,20 +125,26 @@ export class EnvironmentManager {
     };
 
     // Parois Sud (fermée derrière le spawn)
-    createCliffBlock('cliff_s', 54, 4.5, 4, 0, 2.25, -24);
+    createCliffBlock('cliff_s', 54, WALL_HEIGHT, 4, 0, WALL_Y, -24);
 
-    // Parois Est (avec brèche centrée à z = 2 pour l'arche de la caverne)
+    // Parois Est (avec brèche pour l'arche et mur plein sommital)
     // Brèche de z = -0.5 à z = 4.5 (largeur 5.0).
-    createCliffBlock('cliff_e_south', 4, 4.5, 23.5, 25, 2.25, -12.25);
-    createCliffBlock('cliff_e_north', 4, 4.5, 19.5, 25, 2.25, 14.25);
+    createCliffBlock('cliff_e_south', 4, WALL_HEIGHT, 23.5, 25, WALL_Y, -12.25);
+    createCliffBlock('cliff_e_north', 4, WALL_HEIGHT, 19.5, 25, WALL_Y, 14.25);
+    // Haut de la porte Est (mur reliant les falaises au-dessus de l'arche)
+    createCliffBlock('cliff_e_top_door', 4, WALL_HEIGHT - 5.0, 5.0, 25, 5.0 + (WALL_HEIGHT - 5.0) / 2, 2.0);
 
-    // Parois Ouest (avec brèche centrée à z = 2 pour la grille du sanctuaire)
-    createCliffBlock('cliff_w_south', 4, 4.5, 23.5, -25, 2.25, -12.25);
-    createCliffBlock('cliff_w_north', 4, 4.5, 19.5, -25, 2.25, 14.25);
+    // Parois Ouest (avec brèche pour le sanctuaire et mur plein sommital)
+    createCliffBlock('cliff_w_south', 4, WALL_HEIGHT, 23.5, -25, WALL_Y, -12.25);
+    createCliffBlock('cliff_w_north', 4, WALL_HEIGHT, 19.5, -25, WALL_Y, 14.25);
+    // Haut de la porte Ouest (mur reliant les falaises au-dessus de la grille)
+    createCliffBlock('cliff_w_top_door', 4, WALL_HEIGHT - 5.0, 5.0, -25, 5.0 + (WALL_HEIGHT - 5.0) / 2, 2.0);
 
-    // Parois Nord (avec brèche centrée à x = 0 pour la Porte du Boss, de x = -3.5 à x = 3.5)
-    createCliffBlock('cliff_n_east', 22.5, 5.5, 4, 14.75, 2.75, 24);
-    createCliffBlock('cliff_n_west', 22.5, 5.5, 4, -14.75, 2.75, 24);
+    // Parois Nord (avec brèche pour la Porte du Boss et mur plein sommital)
+    createCliffBlock('cliff_n_east', 22.5, WALL_HEIGHT, 4, 14.75, WALL_Y, 24);
+    createCliffBlock('cliff_n_west', 22.5, WALL_HEIGHT, 4, -14.75, WALL_Y, 24);
+    // Haut de la porte Nord (mur reliant les falaises au-dessus de la porte du Boss)
+    createCliffBlock('cliff_n_top_door', 7.0, WALL_HEIGHT - 6.7, 4.0, 0, 6.7 + (WALL_HEIGHT - 6.7) / 2, 24);
 
     // Fonction de création d'arbres low-poly décoratifs
     const createTree = (name, x, z, scale = 1) => {

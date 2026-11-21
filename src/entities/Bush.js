@@ -150,12 +150,12 @@ export class HeartPickup {
     this.heartContainer.parent = this.root;
     this.heartContainer.position.y = 0.55;
 
-    // Matériau rouge rubis étincelant avec émission dans le noir
+    // Matériau rouge rubis étincelant avec émission dans le noir (sans point blanc)
     const heartMat = new StandardMaterial('mat_heart_pickup', this.scene);
     heartMat.diffuseColor = new Color3(1.0, 0.12, 0.28);
     heartMat.emissiveColor = new Color3(0.72, 0.08, 0.22);
-    heartMat.specularColor = new Color3(1.0, 0.9, 0.95);
-    heartMat.specularPower = 32;
+    heartMat.specularColor = new Color3(0.12, 0.02, 0.04);
+    heartMat.specularPower = 16;
 
     // Modélisation paramétrique mathématique d'un cœur 3D véritable, lisse et galbé
     // x(t) = sin^3(t)
@@ -196,20 +196,6 @@ export class HeartPickup {
     heartMesh.material = heartMat;
     heartMesh.parent = this.heartContainer;
     this.meshes.push(heartMesh);
-
-    // Reflet brillant (glint rétro sur le lobe supérieur gauche)
-    const glintMat = new StandardMaterial('mat_heart_glint', this.scene);
-    glintMat.diffuseColor = new Color3(1.0, 1.0, 1.0);
-    glintMat.emissiveColor = new Color3(0.95, 0.95, 1.0);
-
-    const glint = MeshBuilder.CreateSphere('heart_glint', {
-      diameter: 0.075,
-      segments: 8
-    }, this.scene);
-    glint.material = glintMat;
-    glint.position.set(-0.09, 0.14, 0.065);
-    glint.parent = this.heartContainer;
-    this.meshes.push(glint);
 
     // Ombre portée au sol
     const shadowMat = new StandardMaterial('mat_heart_shadow', this.scene);
