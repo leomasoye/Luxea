@@ -72,29 +72,34 @@ export class UIManager {
     this.lightBarFill.style.width = `${clampedRatio * 100}%`;
 
     if (isTorchMode) {
-      this.lightBarFill.style.background = 'linear-gradient(90deg, #ffd166, #ffffff)';
-      this.lightBarFill.style.boxShadow = '0 0 12px #ffe066';
+      this.lightBarFill.style.background = 'repeating-linear-gradient(90deg, #ffffff 0px, #ffffff 7px, #ffe066 7px, #ffe066 8px)';
     } else {
-      this.lightBarFill.style.background = 'linear-gradient(90deg, #ffe066, #fff3b0, #ffffff)';
-      this.lightBarFill.style.boxShadow = '0 0 6px #ffe066';
+      this.lightBarFill.style.background = 'repeating-linear-gradient(90deg, #ffe066 0px, #ffe066 7px, #e5a800 7px, #e5a800 8px)';
     }
   }
 
   // Met à jour l'inventaire des clés
   updateKeys(simpleKey, bossKey) {
+    const slotSimple = document.getElementById('slot-simple-key');
+    const slotBoss = document.getElementById('slot-boss-key');
+
     if (this.iconSimpleKey) {
       if (simpleKey) {
         this.iconSimpleKey.classList.add('acquired');
+        slotSimple?.classList.add('acquired');
       } else {
         this.iconSimpleKey.classList.remove('acquired');
+        slotSimple?.classList.remove('acquired');
       }
     }
 
     if (this.iconBossKey) {
       if (bossKey) {
         this.iconBossKey.classList.add('acquired');
+        slotBoss?.classList.add('acquired');
       } else {
         this.iconBossKey.classList.remove('acquired');
+        slotBoss?.classList.remove('acquired');
       }
     }
   }
@@ -189,9 +194,9 @@ export class UIManager {
   }
 
   updateSoundButton(isMuted) {
-    const text = isMuted ? 'Son : Désactivé' : 'Son : Activé';
-    if (this.btnSoundToggle) this.btnSoundToggle.textContent = text;
-    if (this.btnPauseSound) this.btnPauseSound.textContent = text;
+    const html = `<span class="cursor-arrow">►</span> Son : ${isMuted ? 'Désactivé' : 'Activé'}`;
+    if (this.btnSoundToggle) this.btnSoundToggle.innerHTML = html;
+    if (this.btnPauseSound) this.btnPauseSound.innerHTML = html;
   }
 
   updateDevStats(fps) {

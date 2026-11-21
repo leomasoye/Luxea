@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges" width="28" height="28">
+  <!-- Retro Ornate Boss Key (Grand Key) with Ruby Crown / Skull Motif -->
+  <!-- Outer Outline -->
+  <rect x="2" y="1" width="2" height="1" fill="#000000"/>
+  <rect x="7" y="0" width="2" height="1" fill="#000000"/>
+  <rect x="12" y="1" width="2" height="1" fill="#000000"/>
+
+  <rect x="1" y="2" width="1" height="4" fill="#000000"/>
+  <rect x="14" y="2" width="1" height="4" fill="#000000"/>
+  <rect x="2" y="6" width="2" height="1" fill="#000000"/>
+  <rect x="12" y="6" width="2" height="1" fill="#000000"/>
+
+  <!-- Ornate Crown / Skull Head Gold Body -->
+  <rect x="2" y="2" width="2" height="4" fill="#ffd700"/>
+  <rect x="4" y="1" width="3" height="5" fill="#ffe680"/>
+  <rect x="7" y="1" width="2" height="2" fill="#fff2a3"/>
+  <rect x="9" y="1" width="3" height="5" fill="#e6b800"/>
+  <rect x="12" y="2" width="2" height="4" fill="#b38600"/>
+
+  <!-- Central Red Boss Ruby / Eye -->
+  <rect x="6" y="3" width="4" height="3" fill="#000000"/>
+  <rect x="7" y="3" width="2" height="1" fill="#ffffff"/>
+  <rect x="7" y="4" width="2" height="2" fill="#ff2a55"/>
+  <rect x="6" y="4" width="1" height="2" fill="#e60026"/>
+  <rect x="9" y="4" width="1" height="2" fill="#99001a"/>
+
+  <!-- Neck -->
+  <rect x="4" y="6" width="8" height="1" fill="#b38600"/>
+  <rect x="5" y="7" width="6" height="1" fill="#000000"/>
+
+  <!-- Ornate Shaft -->
+  <rect x="6" y="8" width="1" height="6" fill="#000000"/>
+  <rect x="9" y="8" width="1" height="6" fill="#000000"/>
+  <rect x="7" y="8" width="2" height="6" fill="#ffd700"/>
+  <rect x="8" y="8" width="1" height="6" fill="#b38600"/>
+
+  <!-- Double Ornate Boss Teeth -->
+  <!-- Left Winglet -->
+  <rect x="3" y="9" width="3" height="1" fill="#000000"/>
+  <rect x="3" y="10" width="3" height="1" fill="#ffe066"/>
+  <rect x="2" y="10" width="1" height="2" fill="#000000"/>
+  <rect x="3" y="11" width="3" height="1" fill="#000000"/>
+
+  <!-- Right Master Ward -->
+  <rect x="10" y="9" width="4" height="1" fill="#000000"/>
+  <rect x="10" y="10" width="3" height="1" fill="#ffd700"/>
+  <rect x="13" y="10" width="1" height="4" fill="#000000"/>
+  <rect x="10" y="11" width="2" height="1" fill="#000000"/>
+  <rect x="10" y="12" width="3" height="1" fill="#ffd700"/>
+  <rect x="10" y="13" width="3" height="1" fill="#000000"/>
+
+  <!-- Base Pommel -->
+  <rect x="5" y="14" width="6" height="1" fill="#000000"/>
+  <rect x="6" y="14" width="4" height="1" fill="#ffd700"/>
+  <rect x="6" y="15" width="4" height="1" fill="#000000"/>
+</svg>
