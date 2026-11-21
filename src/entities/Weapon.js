@@ -23,12 +23,14 @@ export class Weapon {
     this.root.parent = parentNode;
 
     this.bladeMesh = null;
-    this.slashArcMesh = null;
+    this.trailMesh = null;
+    this.basePath = [];
+    this.tipPath = [];
     this.tipNode = null;
 
     this.isSlashing = false;
     this.slashTimer = 0;
-    this.slashDuration = 0.22; // Durée de l'animation d'attaque (secondes)
+    this.slashDuration = 0.28; // Durée de l'animation d'attaque complète (windup + frappe + recovery)
 
     this.initMeshes();
   }
@@ -90,32 +92,62 @@ export class Weapon {
     this.tipNode.parent = this.root;
     this.tipNode.position.y = 1.35;
 
-    // 7. Arc de cercle tranchant visuel (Slash Arc semi-transparent)
-    this.initSlashArc();
+    // 7. Sillage dynamique de lame lumineuse (Ruban 3D synchronisé sur la lame)
+    this.initSlashTrail();
 
     // Position de repos au côté de Zalya
     this.setRestPose();
   }
 
-  initSlashArc() {
-    const slashMat = new StandardMaterial('mat_slash_arc', this.scene);
-    slashMat.diffuseColor = new Color3(1.0, 0.95, 0.6);
-    slashMat.emissiveColor = new Color3(1.0, 0.85, 0.3);
-    slashMat.alpha = 0.75;
-    slashMat.backFaceCulling = false;
+  initSlashTrail() {
+    const trailMat = new StandardMaterial('mat_sword_trail', this.scene);
+    trailMat.diffuseColor = new Color3(1.0, 0.95, 0.65);
+    trailMat.emissiveColor = new Color3(1.0, 0.85, 0.35); // Lueur dorée intense rétro
+    trailMat.specularColor = new Color3(1.0, 1.0, 1.0);
+    trailMat.alpha = 0.9;
+    trailMat.backFaceCulling = false;
 
-    // Disque partiel représentant le sillage tranchant lumineux
-    this.slashArcMesh = MeshBuilder.CreateDisc('slashArc', {
-      radius: 1.8,
-      tessellation: 24,
-      arc: 0.55 // ~100 degrés d'arc
+    // 16 points d'échantillonnage pour un arc de cercle ultra-lisse
+    this.trailSegments = 16;
+    this.basePath = [];
+    this.tipPath = [];
+    for (let i = 0; i < this.trailSegments; i++) {
+      this.basePath.push(new Vector3(0, 0, 0));
+      this.tipPath.push(new Vector3(0, 0, 0));
+    }
+
+    this.trailMesh = MeshBuilder.CreateRibbon('swordTrail', {
+      pathArray: [this.basePath, this.tipPath],
+      updatable: true,
+      sideOrientation: 2 // Mesh.DOUBLESIDE
     }, this.scene);
-    this.slashArcMesh.material = slashMat;
-    this.slashArcMesh.parent = this.parentNode;
-    this.slashArcMesh.rotation.x = Math.PI / 2;
-    this.slashArcMesh.position.y = 0.6;
-    this.slashArcMesh.position.z = 0.4;
-    this.slashArcMesh.setEnabled(false);
+    this.trailMesh.material = trailMat;
+    this.trailMesh.parent = this.parentNode;
+    this.trailMesh.setEnabled(false);
+  }
+
+  /**
+   * Calcule les coordonnées 3D d'un point sur la lame le long de sa hauteur locale Y.
+   * Reproduit fidèlement la rotation Euler Z-X-Y de Babylon.js.
+   */
+  getSwordPoint(hx, hy, hz, rotX, rotY, rotZ, localY) {
+    const x1 = -localY * Math.sin(rotZ);
+    const y1 = localY * Math.cos(rotZ);
+
+    const x2 = x1;
+    const y2 = y1 * Math.cos(rotX);
+    const z2 = y1 * Math.sin(rotX);
+
+    const x3 = x2 * Math.cos(rotY) + z2 * Math.sin(rotY);
+    const y3 = y2;
+    const z3 = -x2 * Math.sin(rotY) + z2 * Math.cos(rotY);
+
+    return new Vector3(hx + x3, hy + y3, hz + z3);
+  }
+
+  getProgress() {
+    if (!this.isSlashing) return 0;
+    return Math.min(1.0, Math.max(0.0, 1.0 - (this.slashTimer / this.slashDuration)));
   }
 
   setRestPose() {
@@ -124,18 +156,18 @@ export class Weapon {
   }
 
   setTorchPose() {
-    // Épée brandie haut vers le ciel
-    this.root.position.set(0.2, 1.25, 0.2);
-    this.root.rotation.set(-0.3, 0, 0.1);
+    // Épée brandie haut vers le ciel, avancée devant Zalya pour ne jamais traverser sa tête
+    this.root.position.set(0.32, 1.35, 0.55);
+    this.root.rotation.set(0.2, 0.15, -0.1);
   }
 
   startSlash() {
     if (this.isSlashing) return false;
     this.isSlashing = true;
     this.slashTimer = this.slashDuration;
-    if (this.slashArcMesh) {
-      this.slashArcMesh.setEnabled(true);
-      this.slashArcMesh.rotation.z = -Math.PI / 1.8;
+    if (this.trailMesh) {
+      this.trailMesh.setEnabled(false);
+      this.trailMesh.material.alpha = 0.9;
     }
     return true;
   }
@@ -147,29 +179,123 @@ export class Weapon {
   update(dt, isTorchMode) {
     if (this.isSlashing) {
       this.slashTimer -= dt;
-      const progress = 1 - (this.slashTimer / this.slashDuration); // 0 à 1
+      const progress = this.getProgress(); // 0 à 1
 
-      // Mouvement de balayage horizontal rapide (~180°)
-      const startAngle = Math.PI * 0.45;
-      const endAngle = -Math.PI * 0.55;
-      const currentAngle = startAngle + (endAngle - startAngle) * progress;
+      // --- PHASE 1 : Préparation & Armement du coup (Windup) de 0.0 à 0.14 ---
+      if (progress < 0.14) {
+        const u = progress / 0.14;
+        const w = Math.sin(u * Math.PI * 0.5);
 
-      this.root.position.set(
-        Math.cos(currentAngle) * 0.9,
-        0.65,
-        Math.sin(currentAngle) * 0.9 + 0.3
-      );
-      this.root.rotation.set(Math.PI / 2.2, -currentAngle, 0);
+        // L'épée monte prestement vers l'épaule droite en position d'armement
+        const startX = isTorchMode ? 0.32 : 0.42;
+        const startY = isTorchMode ? 1.35 : 0.50;
+        const startZ = isTorchMode ? 0.55 : 0.15;
 
-      if (this.slashArcMesh) {
-        this.slashArcMesh.rotation.y = -currentAngle * 0.5;
-        this.slashArcMesh.material.alpha = (1 - progress) * 0.85;
+        this.root.position.set(
+          startX + (0.52 - startX) * w,
+          startY + (1.20 - startY) * w,
+          startZ + (0.28 - startZ) * w
+        );
+        this.root.rotation.set(
+          0.2 - 0.45 * w,
+          -0.65 * w,
+          -0.2 - 0.25 * w
+        );
+
+        if (this.trailMesh) {
+          this.trailMesh.setEnabled(false);
+        }
+      }
+      // --- PHASE 2 : Frappe explosive en croissant devant le torse de 0.14 à 0.64 ---
+      else if (progress < 0.64) {
+        const u = (progress - 0.14) / 0.50;
+        // Accélération explosive (Cubic ease-out) : la lame fend l'air dès le premier tiers
+        const e = 1.0 - Math.pow(1.0 - u, 3);
+
+        // Balayage franc devant le torse (de +75° à droite jusqu'à -75° à gauche)
+        const phi = 1.30 - 2.60 * e;
+
+        // Position de la poignée : hauteur de poitrine (y ~ 1.05) avec un arc plongeant naturel
+        const hx = Math.sin(phi) * 0.62;
+        const hz = Math.cos(phi) * 0.36 + 0.58;
+        const hy = 1.15 - 0.28 * e + 0.18 * e * e;
+
+        // Orientation de la lame : couchée à l'horizontale, coupante dans le sens de l'arc
+        const rotX = Math.PI / 2.02 + 0.15 * Math.sin(e * Math.PI);
+        const rotY = -phi * 1.22;
+        const rotZ = 0.22 * Math.cos(phi);
+
+        this.root.position.set(hx, hy, hz);
+        this.root.rotation.set(rotX, rotY, rotZ);
+
+        // Mise à jour en temps réel du ruban lumineux (Sword Trail)
+        // Les coordonnées du ruban sont calculées exactement là où la lame passe !
+        for (let i = 0; i < this.trailSegments; i++) {
+          const k = i / (this.trailSegments - 1);
+          const sampleE = e * k;
+          const sPhi = 1.30 - 2.60 * sampleE;
+
+          const sHx = Math.sin(sPhi) * 0.62;
+          const sHz = Math.cos(sPhi) * 0.36 + 0.58;
+          const sHy = 1.15 - 0.28 * sampleE + 0.18 * sampleE * sampleE;
+
+          const sRotX = Math.PI / 2.02 + 0.15 * Math.sin(sampleE * Math.PI);
+          const sRotY = -sPhi * 1.22;
+          const sRotZ = 0.22 * Math.cos(sPhi);
+
+          const basePt = this.getSwordPoint(sHx, sHy, sHz, sRotX, sRotY, sRotZ, 0.35);
+          const tipPt = this.getSwordPoint(sHx, sHy, sHz, sRotX, sRotY, sRotZ, 1.42);
+
+          this.basePath[i].copyFrom(basePt);
+          this.tipPath[i].copyFrom(tipPt);
+        }
+
+        MeshBuilder.CreateRibbon(null, {
+          pathArray: [this.basePath, this.tipPath],
+          instance: this.trailMesh
+        });
+        this.trailMesh.material.alpha = 0.90;
+        this.trailMesh.setEnabled(true);
+      }
+      // --- PHASE 3 : Amorti & Retour en garde (Recovery) de 0.64 à 1.0 ---
+      else {
+        const u = (progress - 0.64) / 0.36;
+        const s = Math.sin(u * Math.PI * 0.5);
+
+        // Pose de fin de coupe
+        const endPoseX = Math.sin(-1.30) * 0.62;
+        const endPoseZ = Math.cos(-1.30) * 0.36 + 0.58;
+        const endPoseY = 1.05;
+
+        const targetX = isTorchMode ? 0.32 : 0.42;
+        const targetY = isTorchMode ? 1.35 : 0.50;
+        const targetZ = isTorchMode ? 0.55 : 0.15;
+
+        const targetRotX = isTorchMode ? 0.2 : 0.2;
+        const targetRotY = isTorchMode ? 0.15 : 0.0;
+        const targetRotZ = isTorchMode ? -0.1 : -0.2;
+
+        this.root.position.set(
+          endPoseX + (targetX - endPoseX) * s,
+          endPoseY + (targetY - endPoseY) * s,
+          endPoseZ + (targetZ - endPoseZ) * s
+        );
+        this.root.rotation.set(
+          (Math.PI / 2.02) + (targetRotX - Math.PI / 2.02) * s,
+          1.58 + (targetRotY - 1.58) * s,
+          0.05 + (targetRotZ - 0.05) * s
+        );
+
+        // Évanouissement progressif et élégant de la traînée lumineuse
+        if (this.trailMesh) {
+          this.trailMesh.material.alpha = 0.90 * (1.0 - s);
+        }
       }
 
       if (this.slashTimer <= 0) {
         this.isSlashing = false;
-        if (this.slashArcMesh) {
-          this.slashArcMesh.setEnabled(false);
+        if (this.trailMesh) {
+          this.trailMesh.setEnabled(false);
         }
         if (isTorchMode) {
           this.setTorchPose();

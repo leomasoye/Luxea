@@ -6,6 +6,7 @@ import { CameraManager } from '../rendering/CameraManager.js';
 import { LightingManager } from '../rendering/LightingManager.js';
 import { EnvironmentManager } from '../world/EnvironmentManager.js';
 import { LevelManager } from '../world/LevelManager.js';
+import { CollisionManager } from '../world/CollisionManager.js';
 import { Player } from '../entities/Player.js';
 import { UIManager } from '../ui/UIManager.js';
 
@@ -40,9 +41,15 @@ export class GameManager {
 
     this.cameraManager = new CameraManager(this.scene, this.canvas);
     this.lightingManager = new LightingManager(this.scene);
+    this.collision = new CollisionManager();
     this.environment = new EnvironmentManager(this.scene);
     this.level = new LevelManager(this.scene, this.audio, this.saveData);
-    this.player = new Player(this.scene, this.audio, this.lightingManager, this.cameraManager);
+
+    // Initialisation des hitboxes (murs, falaises, arbres, buissons, panneau, portes)
+    this.environment.initColliders(this.collision);
+    this.level.initColliders(this.collision);
+
+    this.player = new Player(this.scene, this.audio, this.lightingManager, this.cameraManager, this.collision);
     this.ui = new UIManager(this.scene);
 
     // Initialisation des liaisons d'événements UI

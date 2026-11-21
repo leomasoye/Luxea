@@ -180,4 +180,45 @@ export class EnvironmentManager {
       createTree(`tree_${idx}`, pos.x, pos.z, pos.s);
     });
   }
+
+  /**
+   * Enregistre les hitboxes des murs, falaises et arbres dans le CollisionManager.
+   */
+  initColliders(collisionManager) {
+    if (!collisionManager) return;
+
+    // 1. Falaises périmétriques (Murs)
+    // Parois Sud (fermée derrière le spawn)
+    collisionManager.addBox(-27, 27, -26, -22, 'cliff_s');
+
+    // Parois Est (avec brèche pour l'arche à z = 2)
+    collisionManager.addBox(23, 27, 3, 25, 'cliff_e_north');
+    collisionManager.addBox(23, 27, -23, -1, 'cliff_e_south');
+
+    // Parois Ouest (avec brèche pour la grille à z = 2)
+    collisionManager.addBox(-27, -23, 3, 25, 'cliff_w_north');
+    collisionManager.addBox(-27, -23, -23, -1, 'cliff_w_south');
+
+    // Parois Nord (avec brèche pour la Porte du Boss à x = 0)
+    collisionManager.addBox(4, 26, 22, 26, 'cliff_n_east');
+    collisionManager.addBox(-26, -4, 22, 26, 'cliff_n_west');
+
+    // 2. Arbres (Troncs solides)
+    const treePositions = [
+      { x: -18, z: -16, s: 1.1 },
+      { x: -14, z: -18, s: 0.9 },
+      { x: 16, z: -16, s: 1.2 },
+      { x: 19, z: -14, s: 0.9 },
+      { x: -12, z: 12, s: 1.15 },
+      { x: -15, z: 15, s: 0.85 },
+      { x: 14, z: 12, s: 1.0 },
+      { x: 17, z: 15, s: 1.2 },
+      { x: -8, z: -10, s: 0.8 },
+      { x: 9, z: -8, s: 0.85 }
+    ];
+
+    treePositions.forEach(t => {
+      collisionManager.addCircle(t.x, t.z, 0.65 * t.s, 'tree');
+    });
+  }
 }

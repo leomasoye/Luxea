@@ -17,11 +17,13 @@ import { Weapon } from './Weapon.js';
  * - Frappe lumineuse à l'épée avec knockback et retours visuels.
  */
 export class Player {
-  constructor(scene, audioManager, lightingManager, cameraManager) {
+  constructor(scene, audioManager, lightingManager, cameraManager, collisionManager = null) {
     this.scene = scene;
     this.audio = audioManager;
     this.lighting = lightingManager;
     this.camera = cameraManager;
+    this.collision = collisionManager;
+    this.radius = 0.38; // Rayon de la hitbox circulaire de Zalya
 
     this.root = new TransformNode('PlayerRoot', this.scene);
     this.root.position = new Vector3(0, 0, -4); // Point d'apparition au sud du Hub
@@ -73,12 +75,12 @@ export class Player {
     this.torchRechargeRate = 0.12; // Rechargement à la lumière du soleil dans la plaine
     this.torchDrainRate = 0.08;
 
-    // Bornes de collision de la plaine
+    // Bornes de collision de la plaine (couvrent l'ensemble du terrain jusqu'aux falaises)
     this.bounds = {
-      minX: -24,
-      maxX: 24,
-      minZ: -20,
-      maxZ: 25
+      minX: -26,
+      maxX: 26,
+      minZ: -23,
+      maxZ: 26
     };
 
     this.initMeshes();
@@ -208,6 +210,10 @@ export class Player {
     this.shadowDisc.parent = this.root;
   }
 
+  setCollisionManager(collisionManager) {
+    this.collision = collisionManager;
+  }
+
   // Position absolue dans l'espace 3D
   getPosition() {
     return this.root.position;
@@ -264,8 +270,18 @@ export class Player {
 
     // Knockback
     if (knockbackDir) {
-      this.root.position.x += knockbackDir.x * 0.8;
-      this.root.position.z += knockbackDir.z * 0.8;
+      const kbDelta = {
+        x: knockbackDir.x * 0.8,
+        z: knockbackDir.z * 0.8
+      };
+      if (this.collision) {
+        const resolved = this.collision.resolveMove(this.root.position, kbDelta, this.radius);
+        this.root.position.x = resolved.x;
+        this.root.position.z = resolved.z;
+      } else {
+        this.root.position.x += kbDelta.x;
+        this.root.position.z += kbDelta.z;
+      }
     }
 
     return true;
@@ -314,9 +330,20 @@ export class Player {
       this.dodgeTimer -= dt;
       const progress = 1 - (this.dodgeTimer / this.dodgeDuration);
 
-      // Translation rapide
-      this.root.position.x += this.dodgeDirection.x * this.dodgeSpeed * dt;
-      this.root.position.z += this.dodgeDirection.z * this.dodgeSpeed * dt;
+      // Translation rapide avec résolution de collisions
+      const moveDelta = {
+        x: this.dodgeDirection.x * this.dodgeSpeed * dt,
+        z: this.dodgeDirection.z * this.dodgeSpeed * dt
+      };
+
+      if (this.collision) {
+        const resolved = this.collision.resolveMove(this.root.position, moveDelta, this.radius);
+        this.root.position.x = resolved.x;
+        this.root.position.z = resolved.z;
+      } else {
+        this.root.position.x += moveDelta.x;
+        this.root.position.z += moveDelta.z;
+      }
 
       // Animation procédurale de roulade (plongeon avant + compression)
       this.visualRoot.rotation.x = progress * Math.PI * 2;
@@ -338,8 +365,19 @@ export class Player {
         if (this.isTorchMode) currentSpeed *= this.torchSpeedMultiplier;
         if (this.weapon.isSlashing) currentSpeed *= 0.45;
 
-        this.root.position.x += mv.x * currentSpeed * dt;
-        this.root.position.z += mv.z * currentSpeed * dt;
+        const moveDelta = {
+          x: mv.x * currentSpeed * dt,
+          z: mv.z * currentSpeed * dt
+        };
+
+        if (this.collision) {
+          const resolved = this.collision.resolveMove(this.root.position, moveDelta, this.radius);
+          this.root.position.x = resolved.x;
+          this.root.position.z = resolved.z;
+        } else {
+          this.root.position.x += moveDelta.x;
+          this.root.position.z += moveDelta.z;
+        }
 
         // Angle de rotation vers la direction du mouvement
         this.targetFacingAngle = Math.atan2(mv.x, mv.z);
@@ -368,6 +406,25 @@ export class Player {
       while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
       this.facingAngle += angleDiff * Math.min(1.0, dt * 18);
       this.visualRoot.rotation.y = this.facingAngle;
+
+      // Cinétique corporelle dynamique lors de la frappe à l'épée
+      if (this.weapon.isSlashing) {
+        const slashP = this.weapon.getProgress();
+        if (slashP >= 0.14 && slashP < 0.64) {
+          const u = (slashP - 0.14) / 0.50;
+          const lunge = Math.sin(u * Math.PI);
+          // Fente vers l'avant et inclinaison du torse avec le coup
+          this.visualRoot.position.z = lunge * 0.16;
+          this.visualRoot.rotation.x = lunge * 0.12;
+          this.visualRoot.rotation.y = this.facingAngle - (1.0 - 2.0 * u) * 0.22;
+        } else {
+          this.visualRoot.position.z = 0;
+          this.visualRoot.rotation.x = 0;
+        }
+      } else {
+        this.visualRoot.position.z = 0;
+        this.visualRoot.rotation.x = 0;
+      }
     }
 
     // 4. Bornage dans les limites de la plaine

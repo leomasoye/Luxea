@@ -312,4 +312,43 @@ export class LevelManager {
       }
     }
   }
+
+  /**
+   * Enregistre les hitboxes du panneau, des portes/grilles et des buissons dans le CollisionManager.
+   */
+  initColliders(collisionManager) {
+    if (!collisionManager) return;
+
+    // 1. Panneau en bois au spawn
+    collisionManager.addCircle(2.4, -3.2, 0.45, 'spawn_sign');
+
+    // 2. Portes & Passages
+    // Grille de bronze scellée (Ouest) & colonnes
+    collisionManager.addBox(-23.4, -22.6, -0.1, 4.1, 'west_gate');
+    collisionManager.addCircle(-23, 0.2, 0.65, 'west_col_l');
+    collisionManager.addCircle(-23, 3.8, 0.65, 'west_col_r');
+
+    // Porte imposante du Boss (Nord) & monolithes
+    collisionManager.addBox(-2.6, 2.6, 23.2, 24.0, 'boss_door');
+    collisionManager.addBox(-4.3, -2.1, 22.0, 25.0, 'boss_post_l');
+    collisionManager.addBox(2.1, 4.3, 22.0, 25.0, 'boss_post_r');
+
+    // Piliers de l'arche de la Caverne (Est) & fond obscur
+    collisionManager.addBox(22.2, 23.8, -1.0, 1.2, 'east_pillar_l');
+    collisionManager.addBox(22.2, 23.8, 2.8, 4.8, 'east_pillar_r');
+    collisionManager.addBox(24.2, 25.5, -0.4, 4.4, 'east_cave_darkness');
+
+    // 3. Buissons tranchables : actifs uniquement tant qu'ils ne sont pas coupés
+    collisionManager.addDynamicSource(() => {
+      return this.bushes
+        .filter(b => !b.isCut)
+        .map(b => ({
+          type: 'circle',
+          x: b.root.position.x,
+          z: b.root.position.z,
+          radius: 0.7,
+          tag: 'bush'
+        }));
+    });
+  }
 }
