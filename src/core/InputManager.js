@@ -23,8 +23,8 @@ export class InputManager {
 
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
-    this.onMouseDown = this.onMouseDown.bind(this);
-    this.onMouseUp = this.onMouseUp.bind(this);
+    this.onPointerDown = this.onPointerDown.bind(this);
+    this.onPointerUp = this.onPointerUp.bind(this);
     this.onContextMenu = this.onContextMenu.bind(this);
 
     this.init();
@@ -33,22 +33,52 @@ export class InputManager {
   init() {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
-    window.addEventListener('mousedown', this.onMouseDown);
-    window.addEventListener('mouseup', this.onMouseUp);
+    // Utilisation de pointerdown / pointerup en phase de capture pour contourner l'interception de canvas par Babylon.js
+    window.addEventListener('pointerdown', this.onPointerDown, { capture: true });
+    window.addEventListener('pointerup', this.onPointerUp, { capture: true });
     window.addEventListener('contextmenu', this.onContextMenu);
   }
 
   destroy() {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
-    window.removeEventListener('mousedown', this.onMouseDown);
-    window.removeEventListener('mouseup', this.onMouseUp);
+    window.removeEventListener('pointerdown', this.onPointerDown, { capture: true });
+    window.removeEventListener('pointerup', this.onPointerUp, { capture: true });
     window.removeEventListener('contextmenu', this.onContextMenu);
+  }
+
+  isUIEvent(e) {
+    if (!e || !e.target) return false;
+    // Clic sur un bouton ou élément d'interface utilisateur (modal, pause, HUD)
+    return !!(e.target.closest && e.target.closest('button, .menu-modal, .interactive, #hud, #dialogue-container'));
   }
 
   onContextMenu(e) {
     // Empêcher l'ouverture du menu contextuel au clic droit (utilisé pour la lumière/torche)
     e.preventDefault();
+  }
+
+  onPointerDown(e) {
+    // Si le clic s'est produit sur un élément d'interface (bouton menu, dialogue), ne pas attaquer en jeu
+    if (this.isUIEvent(e)) return;
+
+    if (e.button === 0) {
+      this.mouse.leftDown = true;
+      this.mouse.leftPressed = true;
+      this.attackPressed = true;
+    } else if (e.button === 2) {
+      this.mouse.rightDown = true;
+      this.mouse.rightPressed = true;
+      this.torchHeld = true;
+    }
+  }
+
+  onPointerUp(e) {
+    if (e.button === 0) {
+      this.mouse.leftDown = false;
+    } else if (e.button === 2) {
+      this.mouse.rightDown = false;
+    }
   }
 
   onKeyDown(e) {
@@ -82,25 +112,6 @@ export class InputManager {
 
   onKeyUp(e) {
     this.keys.set(e.code, false);
-  }
-
-  onMouseDown(e) {
-    if (e.button === 0) {
-      this.mouse.leftDown = true;
-      this.mouse.leftPressed = true;
-      this.attackPressed = true;
-    } else if (e.button === 2) {
-      this.mouse.rightDown = true;
-      this.mouse.rightPressed = true;
-    }
-  }
-
-  onMouseUp(e) {
-    if (e.button === 0) {
-      this.mouse.leftDown = false;
-    } else if (e.button === 2) {
-      this.mouse.rightDown = false;
-    }
   }
 
   isKeyDown(code) {
@@ -206,5 +217,17 @@ export class InputManager {
     const val = this.pausePressed;
     this.pausePressed = false;
     return val;
+  }
+
+  // Réinitialise tous les états transitoires (clics en attente, entrées résiduelles après un clic UI)
+  flush() {
+    this.attackPressed = false;
+    this.dodgePressed = false;
+    this.interactPressed = false;
+    this.pausePressed = false;
+    this.mouse.leftDown = false;
+    this.mouse.rightDown = false;
+    this.mouse.leftPressed = false;
+    this.mouse.rightPressed = false;
   }
 }

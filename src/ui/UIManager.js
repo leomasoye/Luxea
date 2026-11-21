@@ -80,26 +80,19 @@ export class UIManager {
 
   // Met à jour l'inventaire des clés
   updateKeys(simpleKey, bossKey) {
-    const slotSimple = document.getElementById('slot-simple-key');
-    const slotBoss = document.getElementById('slot-boss-key');
-
     if (this.iconSimpleKey) {
       if (simpleKey) {
         this.iconSimpleKey.classList.add('acquired');
-        slotSimple?.classList.add('acquired');
       } else {
         this.iconSimpleKey.classList.remove('acquired');
-        slotSimple?.classList.remove('acquired');
       }
     }
 
     if (this.iconBossKey) {
       if (bossKey) {
         this.iconBossKey.classList.add('acquired');
-        slotBoss?.classList.add('acquired');
       } else {
         this.iconBossKey.classList.remove('acquired');
-        slotBoss?.classList.remove('acquired');
       }
     }
   }

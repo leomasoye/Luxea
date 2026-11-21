@@ -138,40 +138,12 @@
       transition: width 0.08s linear;
     }
 
-    /* Retro Item Rack (Near Hearts) */
-    .retro-inventory-rack {
+    /* Retro Items Container (Near Hearts, no background, no contour, no text) */
+    .items-container {
       display: flex;
-      gap: 8px;
+      gap: 12px;
       align-items: center;
-      background: #080d17;
-      border: 3px solid #000;
-      box-shadow: inset 2px 2px 0 #334460, inset -2px -2px 0 #04060a, 2px 2px 0px #000;
-      padding: 4px 8px;
-    }
-
-    .item-slot {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 48px;
-      background: #0d1422;
-      border: 2px solid #23344d;
-      box-shadow: inset 1px 1px 0 #3b5377, inset -1px -1px 0 #050912;
-      position: relative;
       padding-top: 2px;
-      transition: border-color 0.2s, background-color 0.2s;
-    }
-
-    .item-slot.boss-slot {
-      border-color: #7a5814;
-      box-shadow: inset 1px 1px 0 #c4992e, inset -1px -1px 0 #332304;
-    }
-
-    .item-slot.acquired {
-      border-color: #ffd700;
-      background: #151e33;
     }
 
     .item-icon {
@@ -181,16 +153,15 @@
       background-repeat: no-repeat;
       background-position: center;
       image-rendering: pixelated;
-      opacity: 0.25;
-      filter: grayscale(1);
-      transition: all 0.2s;
+      filter: drop-shadow(2px 2px 0px #000);
+      opacity: 0.2;
+      transition: opacity 0.2s ease, transform 0.1s ease;
     }
 
-    .item-icon.acquired,
-    .item-slot.acquired .item-icon {
+    .item-icon.acquired {
       opacity: 1;
-      filter: drop-shadow(1px 1px 0px #000);
-      transform: scale(1.05);
+      filter: drop-shadow(2px 2px 0px #000);
+      transform: scale(1.08);
     }
 
     .key-simple-icon {
@@ -207,29 +178,6 @@
 
     .arrow-icon {
       background-image: url('/assets/textures/ui/item-arrow.svg');
-    }
-
-    .item-slot.item-locked .item-icon {
-      opacity: 0.15;
-    }
-
-    .slot-tag {
-      font-family: 'Triforce', monospace;
-      font-size: 9px;
-      letter-spacing: 0.5px;
-      color: #94a3b8;
-      text-transform: uppercase;
-      margin-top: 2px;
-      line-height: 1;
-    }
-
-    .slot-tag.boss-tag {
-      color: #ffd700;
-    }
-
-    .item-slot.acquired .slot-tag {
-      color: #ffe066;
-      font-weight: bold;
     }
 
     /* Floating Projected Interaction Prompt */
@@ -346,17 +294,7 @@
       letter-spacing: 4px;
       color: #ffe066;
       text-shadow: 4px 4px 0 #000000, 2px 2px 0 #b38600;
-      margin-bottom: 6px;
-    }
-
-    .game-subtitle {
-      font-family: 'Triforce', monospace;
-      font-size: 13px;
-      color: #a0aec0;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 24px;
-      text-shadow: 1px 1px 0 #000;
+      margin-bottom: 22px;
     }
 
     /* Retro Buttons with Cursor and Pixel 3D Bevel */
@@ -449,16 +387,6 @@
       color: #fff;
     }
 
-    /* Minimalist Retro Pause Hints */
-    .pause-hint {
-      margin-top: 14px;
-      font-family: 'Triforce', monospace;
-      font-size: 13px;
-      letter-spacing: 1.5px;
-      color: #94a3b8;
-      text-shadow: 1px 1px 0 #000;
-    }
-
     /* Dev stats */
     #dev-stats {
       position: absolute;
@@ -492,31 +420,12 @@
         </div>
       </div>
 
-      <!-- Retro Items & Keys Rack (placed near hearts) -->
-      <div class="retro-inventory-rack">
-        <!-- Normal Key Slot -->
-        <div class="item-slot" id="slot-simple-key" title="Clé Simple">
-          <div class="item-icon key-simple-icon" id="icon-simple-key"></div>
-          <span class="slot-tag">Clé</span>
-        </div>
-
-        <!-- Boss Key Slot (specified as Clé de Boss) -->
-        <div class="item-slot boss-slot" id="slot-boss-key" title="Clé de Boss">
-          <div class="item-icon key-boss-icon" id="icon-boss-key"></div>
-          <span class="slot-tag boss-tag">Boss</span>
-        </div>
-
-        <!-- Reserved slot for Map (Carte) -->
-        <div class="item-slot item-locked" id="slot-map" title="Carte (Emplacement réservé)">
-          <div class="item-icon map-icon"></div>
-          <span class="slot-tag">Carte</span>
-        </div>
-
-        <!-- Reserved slot for Arrows (Flèches) -->
-        <div class="item-slot item-locked" id="slot-arrows" title="Flèches (Emplacement réservé)">
-          <div class="item-icon arrow-icon"></div>
-          <span class="slot-tag">Flèches</span>
-        </div>
+      <!-- Retro Items (Near hearts, no contour, no text) -->
+      <div class="items-container" id="items-container">
+        <div class="item-icon key-simple-icon" id="icon-simple-key" title="Clé"></div>
+        <div class="item-icon key-boss-icon" id="icon-boss-key" title="Clé de Boss"></div>
+        <div class="item-icon map-icon" id="icon-map" title="Carte"></div>
+        <div class="item-icon arrow-icon" id="icon-arrows" title="Flèches"></div>
       </div>
     </div>
 
@@ -537,7 +446,6 @@
   <div id="title-screen" class="menu-modal interactive">
     <div class="modal-card">
       <div class="game-title">LUXEA</div>
-      <div class="game-subtitle">L'Éveil de Zelya — Games on Web 2027</div>
 
       <button id="btn-start-game" class="btn-retro">
         <span class="cursor-arrow">►</span> Commencer l'aventure
@@ -560,7 +468,7 @@
   <!-- Pause Menu Modal -->
   <div id="pause-modal" class="menu-modal interactive" style="display: none;">
     <div class="modal-card">
-      <div class="game-title" style="font-size: 36px; margin-bottom: 20px;">PAUSE</div>
+      <div class="game-title" style="font-size: 36px; margin-bottom: 24px;">PAUSE</div>
 
       <button id="btn-resume-game" class="btn-retro">
         <span class="cursor-arrow">►</span> Reprendre
@@ -571,16 +479,13 @@
       <button id="btn-reset-game" class="btn-retro btn-secondary">
         <span class="cursor-arrow">►</span> Recommencer au Spawn
       </button>
-
-      <div class="pause-hint">[Échap] ou [P] pour reprendre</div>
     </div>
   </div>
 
   <!-- Game Over Modal -->
   <div id="gameover-modal" class="menu-modal interactive" style="display: none;">
     <div class="modal-card" style="border-color: #e61c38; box-shadow: inset 3px 3px 0 #ff6b81, inset -3px -3px 0 #800016, 8px 8px 0px #000;">
-      <div class="game-title" style="font-size: 36px; color: #ff4d6d; text-shadow: 4px 4px 0 #000, 2px 2px 0 #80001a;">DÉFAITE</div>
-      <div class="game-subtitle">Zelya a succombé...</div>
+      <div class="game-title" style="font-size: 36px; color: #ff4d6d; text-shadow: 4px 4px 0 #000, 2px 2px 0 #80001a; margin-bottom: 24px;">DÉFAITE</div>
       <button id="btn-respawn" class="btn-retro">
         <span class="cursor-arrow">►</span> Réapparaître dans la Plaine
       </button>

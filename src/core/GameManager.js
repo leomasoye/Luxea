@@ -85,7 +85,6 @@ export class GameManager {
     // Bouton « Recommencer au Spawn » (Pause)
     this.ui.btnResetGame?.addEventListener('click', () => {
       this.respawnPlayer();
-      this.resumeGame();
     });
 
     // Bouton « Réapparaître » (Game Over)
@@ -96,6 +95,7 @@ export class GameManager {
 
   startGame() {
     this.audio.unlock();
+    this.input.flush();
     this.state = GameState.PLAYING;
     this.ui.hideTitleScreen();
     this.ui.updateHealth(this.player.health);
@@ -105,6 +105,7 @@ export class GameManager {
   pauseGame() {
     if (this.state === GameState.PLAYING || this.state === GameState.DIALOGUE) {
       this.state = GameState.PAUSED;
+      this.input.flush();
       this.ui.showPauseModal();
     }
   }
@@ -113,19 +114,29 @@ export class GameManager {
     if (this.state === GameState.PAUSED) {
       this.state = GameState.PLAYING;
       this.ui.hidePauseModal();
+      this.input.flush();
     }
   }
 
   gameOver() {
     this.state = GameState.GAMEOVER;
+    this.input.flush();
     this.audio.playGameOver();
     this.ui.showGameOver();
   }
 
   respawnPlayer() {
     this.player.reset(0, 0, -4);
+    if (this.cameraManager) {
+      this.cameraManager.snapTo(this.player.getPosition());
+    }
     this.ui.updateHealth(this.player.health);
+    this.ui.updateLightGauge(this.player.lightGauge, false);
     this.ui.hideGameOver();
+    this.ui.hidePauseModal();
+    this.ui.hideInteractionPrompt();
+    this.ui.hideDialogue();
+    this.input.flush();
     this.state = GameState.PLAYING;
   }
 
@@ -243,6 +254,7 @@ export class GameManager {
 
   closeDialogue() {
     this.ui.hideDialogue();
+    this.input.flush();
     this.state = GameState.PLAYING;
   }
 }

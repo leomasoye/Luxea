@@ -62,9 +62,10 @@ Les LLM et générateurs d'UI modernes ont tendance à injecter par défaut des 
 ### 2.3 Organisation du HUD (Esprit Zelda classique)
 * **Zone Vitalité (Haut Gauche)** : Cœurs pixel-art (pleins, demi, vides avec encadrement noir et éclat blanc).
 * **Jauge Énergie / Lumière** : Barre segmentée ou dégradé étagé avec cadre biseauté. Pas d'étiquette textuelle inutile (« Lumière ») si l'icône diégétique suffit.
-* **Rack d'Items & Clés** : Cadres carrés d'inventaire juxtaposés pour chaque type d'objet (Clé simple, Clé Boss ornée avec mention claire, Carte, Flèches). Un objet non obtenu apparaît grisé ou en silhouette.
+* **Items & Clés Rétro** : Sprites pixel-art purs flottants (Clé simple, Clé Boss ornée, Carte, Flèches) sans texte de tag ni cadre lourd autour, comme pour les cœurs. Un objet non obtenu apparaît grisé/en silhouette sombre (opacité réduite).
 
 ### 2.4 Menus Rétro (Écran Titre & Pause)
+* **Zéro verbiage parasite** : Pas de sous-titres superflus ni de rappels de touches raccourcis dans le menu pause. Uniquement les boutons de choix essentiels.
 * **Curseur Rétro** : Curseur flèche pixel `►` sur l'option sélectionnée.
 * **Palette Contrastée** : Noir profond (`#05080f`), or impérial (`#ffd700` / `#f0b429`), rouge rubis (`#ff2a55`), bleu nuit (`#142036`).
 * **Typographie Rétro** : Police bitmap / pixelisée avec `letter-spacing: 2px` et ombre noire portée nette.

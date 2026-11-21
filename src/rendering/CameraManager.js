@@ -1,4 +1,4 @@
-﻿import { Vector3, ArcRotateCamera } from '@babylonjs/core';
+import { Vector3, ArcRotateCamera } from '@babylonjs/core';
 
 /**
  * CameraManager.js — Caméra zénithale / isométrique rétro 3/4.
@@ -63,6 +63,18 @@ export class CameraManager {
     this.shakeIntensity = intensity;
     this.shakeDuration = duration;
     this.shakeTimer = duration;
+  }
+
+  // Recentre instantanément la caméra sur une position (sans lerp)
+  snapTo(targetPos) {
+    if (!targetPos || !this.camera) return;
+    const clampedX = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, targetPos.x));
+    const clampedZ = Math.max(this.bounds.minZ, Math.min(this.bounds.maxZ, targetPos.z));
+
+    this.targetPosition.set(clampedX, 1.2, clampedZ);
+    this.smoothedTarget.copyFrom(this.targetPosition);
+    this.camera.setTarget(this.smoothedTarget);
+    this.shakeTimer = 0;
   }
 
   update(playerPos, dt) {
