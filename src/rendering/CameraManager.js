@@ -23,14 +23,14 @@ export class CameraManager {
     this.smoothedTarget = new Vector3(0, 1.2, 0);
     this.leadOffset = new Vector3(0, 0, 0);
 
-    // Paramètres d'angles et zoom
-    this.minBeta = Math.PI / 4.2;     // ~43° angle plongeant maximal
-    this.maxBeta = Math.PI / 2.7;     // ~66° angle plongeant minimal (vue plus haute)
-    this.defaultBeta = Math.PI / 3.4; // ~53° angle rétro parfait
-    this.defaultAlpha = -Math.PI / 2; // Regard initial vers le Nord (dans le dos de Zelya)
-    this.minRadius = 15;
-    this.maxRadius = 28;
-    this.defaultRadius = 22;
+    // Paramètres d'angles et zoom (vue immersive plus proche du sol et de Zelya)
+    this.minBeta = Math.PI / 3.6;      // ~50° angle plongeant maximal (vue légèrement plus haute)
+    this.maxBeta = Math.PI / 2.25;     // ~80° angle plongeant minimal (près du sol)
+    this.defaultBeta = Math.PI / 2.65; // ~68° angle d'aventure immersif proche du sol
+    this.defaultAlpha = -Math.PI / 2;  // Regard initial vers le Nord (dans le dos de Zelya)
+    this.minRadius = 9;
+    this.maxRadius = 24;
+    this.defaultRadius = 16.0;
 
     this.currentAlpha = this.defaultAlpha;
     this.targetAlpha = this.defaultAlpha;

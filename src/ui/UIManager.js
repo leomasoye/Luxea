@@ -1,4 +1,4 @@
-import { Vector3 } from '@babylonjs/core';
+import { Vector3, Matrix } from '@babylonjs/core';
 
 /**
  * UIManager.js — Gestion de l'interface utilisateur en overlay HTML5/CSS3 pur.
@@ -192,28 +192,49 @@ export class UIManager {
     const camera = this.scene.activeCamera;
     if (!camera) return;
 
-    // Projection 3D -> 2D
+    // 1. Vérification que l'objet est strictement devant le plan de la caméra (view space)
+    const viewMatrix = camera.getViewMatrix();
+    const viewPos = Vector3.TransformCoordinates(targetWorldPos, viewMatrix);
+    if (viewPos.z <= 0.1) {
+      this.interactionPrompt.style.display = 'none';
+      return;
+    }
+
+    // 2. Projection 3D monde -> 2D écran avec la matrice Identité (l'objet est déjà en coordonnées monde)
+    const renderWidth = engine.getRenderWidth();
+    const renderHeight = engine.getRenderHeight();
+    const globalViewport = camera.viewport.toGlobal(renderWidth, renderHeight);
+
     const projected = Vector3.Project(
       targetWorldPos,
-      camera.getWorldMatrix(),
+      Matrix.IdentityReadOnly || Matrix.Identity(),
       this.scene.getTransformMatrix(),
-      camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
+      globalViewport
     );
 
-    // Si l'objet est devant la caméra (z > 0)
-    if (projected.z > 0) {
-      // Conversion coordonnées réelles écran en tenant compte du devicePixelRatio
-      const scale = engine.getHardwareScalingLevel ? 1 / engine.getHardwareScalingLevel() : 1;
-      const x = projected.x * scale;
-      const y = (projected.y * scale) - 35; // Décalage de 35px vers le haut de l'objet
-
-      this.interactionPrompt.style.left = `${x}px`;
-      this.interactionPrompt.style.top = `${y}px`;
-      this.interactionPrompt.textContent = promptText;
-      this.interactionPrompt.style.display = 'block';
-    } else {
+    // 3. Vérification des coordonnées à l'écran (doit être dans le champ visuel)
+    const padding = 60;
+    if (
+      projected.z < 0 ||
+      projected.z > 1.0 ||
+      projected.x < -padding ||
+      projected.x > renderWidth + padding ||
+      projected.y < -padding ||
+      projected.y > renderHeight + padding
+    ) {
       this.interactionPrompt.style.display = 'none';
+      return;
     }
+
+    // Conversion coordonnées réelles écran en tenant compte du devicePixelRatio
+    const scale = engine.getHardwareScalingLevel ? 1 / engine.getHardwareScalingLevel() : 1;
+    const x = projected.x * scale;
+    const y = (projected.y * scale) - 35; // Décalage de 35px vers le haut de l'objet
+
+    this.interactionPrompt.style.left = `${x}px`;
+    this.interactionPrompt.style.top = `${y}px`;
+    this.interactionPrompt.textContent = promptText;
+    this.interactionPrompt.style.display = 'block';
   }
 
   hideInteractionPrompt() {

@@ -338,7 +338,7 @@ export class GameManager {
     );
 
     // H. Détection des interactions environnementales (Portes, Panneau, Caverne)
-    const nearest = this.level.getNearestInteractable(this.player.getPosition());
+    const nearest = this.level.getNearestInteractable(this.player.getPosition(), this.player.facingAngle);
     if (nearest) {
       this.ui.updateInteractionPrompt(nearest.position, nearest.promptText);
 

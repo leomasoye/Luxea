@@ -35,8 +35,17 @@ export class Player {
     this.bodyMesh = null;
     this.headMesh = null;
     this.hairMesh = null;
-    this.leftArm = null;
-    this.rightArm = null;
+    this.hairBack = null;
+    this.armLRoot = null;
+    this.armRRoot = null;
+    this.sleeveL = null;
+    this.sleeveR = null;
+    this.handL = null;
+    this.handR = null;
+    this.legLRoot = null;
+    this.legRRoot = null;
+    this.legL = null;
+    this.legR = null;
     this.shadowDisc = null;
 
     // Matériau pour le flash de dégâts (rouge/blanc)
@@ -177,27 +186,75 @@ export class Player {
     this.hairMesh.position.y = 1.76;
     this.hairMesh.parent = this.visualRoot;
 
-    const hairBack = MeshBuilder.CreateBox('zelya_hair_back', {
+    this.hairBack = MeshBuilder.CreateBox('zelya_hair_back', {
       width: 0.58,
       height: 0.55,
       depth: 0.2
     }, this.scene);
-    hairBack.material = hairMaterial;
-    hairBack.position.set(0, 1.48, -0.22);
-    hairBack.parent = this.visualRoot;
+    this.hairBack.material = hairMaterial;
+    this.hairBack.position.set(0, 1.48, -0.22);
+    this.hairBack.parent = this.visualRoot;
 
-    // 4. Jambes / Bottes
-    const legL = MeshBuilder.CreateBox('zelya_leg_l', { width: 0.22, height: 0.45, depth: 0.26 }, this.scene);
-    legL.material = leatherMaterial;
-    legL.position.set(-0.18, 0.22, 0);
-    legL.parent = this.visualRoot;
+    // 4. Jambes / Bottes articulées (pivots aux hanches à y = 0.44)
+    this.legLRoot = new TransformNode('zelya_leg_l_root', this.scene);
+    this.legLRoot.position.set(-0.18, 0.44, 0);
+    this.legLRoot.parent = this.visualRoot;
 
-    const legR = MeshBuilder.CreateBox('zelya_leg_r', { width: 0.22, height: 0.45, depth: 0.26 }, this.scene);
-    legR.material = leatherMaterial;
-    legR.position.set(0.18, 0.22, 0);
-    legR.parent = this.visualRoot;
+    this.legL = MeshBuilder.CreateBox('zelya_leg_l', { width: 0.22, height: 0.44, depth: 0.26 }, this.scene);
+    this.legL.material = leatherMaterial;
+    this.legL.position.set(0, -0.22, 0);
+    this.legL.parent = this.legLRoot;
 
-    // 5. Blob-Shadow rétro au sol (très économique en GPU)
+    this.legRRoot = new TransformNode('zelya_leg_r_root', this.scene);
+    this.legRRoot.position.set(0.18, 0.44, 0);
+    this.legRRoot.parent = this.visualRoot;
+
+    this.legR = MeshBuilder.CreateBox('zelya_leg_r', { width: 0.22, height: 0.44, depth: 0.26 }, this.scene);
+    this.legR.material = leatherMaterial;
+    this.legR.position.set(0, -0.22, 0);
+    this.legR.parent = this.legRRoot;
+
+    // 5. Bras articulés (pivots aux épaules à y = 1.05)
+    this.armLRoot = new TransformNode('zelya_arm_l_root', this.scene);
+    this.armLRoot.position.set(-0.42, 1.05, 0);
+    this.armLRoot.parent = this.visualRoot;
+
+    this.sleeveL = MeshBuilder.CreateBox('zelya_sleeve_l', { width: 0.18, height: 0.32, depth: 0.22 }, this.scene);
+    this.sleeveL.material = this.tunicMaterial;
+    this.sleeveL.position.set(0, -0.16, 0);
+    this.sleeveL.parent = this.armLRoot;
+
+    this.handL = MeshBuilder.CreateBox('zelya_hand_l', { width: 0.14, height: 0.15, depth: 0.16 }, this.scene);
+    this.handL.material = skinMaterial;
+    this.handL.position.set(0, -0.36, 0);
+    this.handL.parent = this.armLRoot;
+
+    this.armRRoot = new TransformNode('zelya_arm_r_root', this.scene);
+    this.armRRoot.position.set(0.42, 1.05, 0);
+    this.armRRoot.parent = this.visualRoot;
+
+    this.sleeveR = MeshBuilder.CreateBox('zelya_sleeve_r', { width: 0.18, height: 0.32, depth: 0.22 }, this.scene);
+    this.sleeveR.material = this.tunicMaterial;
+    this.sleeveR.position.set(0, -0.16, 0);
+    this.sleeveR.parent = this.armRRoot;
+
+    this.handR = MeshBuilder.CreateBox('zelya_hand_r', { width: 0.14, height: 0.15, depth: 0.16 }, this.scene);
+    this.handR.material = skinMaterial;
+    this.handR.position.set(0, -0.36, 0);
+    this.handR.parent = this.armRRoot;
+
+    // Point d'ancrage (socket) pour tenir l'épée fermement dans le poing fermé
+    this.handRSocket = new TransformNode('zelya_hand_r_socket', this.scene);
+    this.handRSocket.position.set(0, -0.04, 0.04);
+    // Angle dans la main : le manche traverse le poing fermé, la lame pointe en avant et vers le haut
+    this.handRSocket.rotation.set(Math.PI / 2.3, 0.08, -0.12);
+    this.handRSocket.parent = this.handR;
+
+    if (this.weapon) {
+      this.weapon.attachToHand(this.handRSocket);
+    }
+
+    // 6. Blob-Shadow rétro au sol (très économique en GPU)
     const shadowMat = new StandardMaterial('mat_blob_shadow', this.scene);
     shadowMat.diffuseColor = new Color3(0, 0, 0);
     shadowMat.alpha = 0.38;
@@ -303,6 +360,18 @@ export class Player {
     this.setPosition(x, y, z);
     this.visualRoot.rotation.x = 0;
     this.visualRoot.rotation.z = 0;
+    this.visualRoot.position.z = 0;
+    if (this.legLRoot) { this.legLRoot.rotation.x = 0; this.legLRoot.position.y = 0.44; }
+    if (this.legRRoot) { this.legRRoot.rotation.x = 0; this.legRRoot.position.y = 0.44; }
+    if (this.armLRoot) { this.armLRoot.rotation.x = 0; this.armLRoot.rotation.y = 0; this.armLRoot.rotation.z = 0; }
+    if (this.armRRoot) {
+      this.armRRoot.rotation.x = -0.30;
+      this.armRRoot.rotation.y = 0.10;
+      this.armRRoot.rotation.z = 0.12;
+    }
+    if (this.bodyMesh) { this.bodyMesh.rotation.x = 0; this.bodyMesh.rotation.y = 0; this.bodyMesh.rotation.z = 0; }
+    if (this.headMesh) { this.headMesh.rotation.x = 0; this.headMesh.rotation.y = 0; }
+    if (this.hairBack) { this.hairBack.rotation.x = 0; }
   }
 
   update(input, dt) {
@@ -312,9 +381,14 @@ export class Player {
       this.invulnerableTimer -= dt;
       // Clignotement visuel de dégâts
       const flash = Math.floor(this.invulnerableTimer * 15) % 2 === 0;
-      this.bodyMesh.material = flash ? this.hurtMaterial : this.tunicMaterial;
+      const mat = flash ? this.hurtMaterial : this.tunicMaterial;
+      this.bodyMesh.material = mat;
+      if (this.sleeveL) this.sleeveL.material = mat;
+      if (this.sleeveR) this.sleeveR.material = mat;
     } else {
       this.bodyMesh.material = this.tunicMaterial;
+      if (this.sleeveL) this.sleeveL.material = this.tunicMaterial;
+      if (this.sleeveR) this.sleeveR.material = this.tunicMaterial;
     }
 
     // 2. Gestion de l'état Mode Torche
@@ -351,6 +425,11 @@ export class Player {
       // Animation procédurale de roulade (plongeon avant + compression)
       this.visualRoot.rotation.x = progress * Math.PI * 2;
       this.visualRoot.scaling.set(0.85, 0.7, 0.85);
+
+      if (this.legLRoot) this.legLRoot.rotation.x = 0;
+      if (this.legRRoot) this.legRRoot.rotation.x = 0;
+      if (this.armLRoot) { this.armLRoot.rotation.x = 0.5; this.armLRoot.rotation.z = -0.1; }
+      if (this.armRRoot && !this.weapon.isSlashing) { this.armRRoot.rotation.x = 0.5; this.armRRoot.rotation.z = 0.1; }
 
       if (this.dodgeTimer <= 0) {
         this.isDodgeRolling = false;
@@ -389,10 +468,56 @@ export class Player {
         // Angle de rotation vers la direction du mouvement monde
         this.targetFacingAngle = Math.atan2(worldDir.x, worldDir.z);
 
-        // Animation procédurale de marche (balancement rétro)
-        this.walkAnimTimer += dt * 14;
-        this.visualRoot.position.y = Math.abs(Math.sin(this.walkAnimTimer)) * 0.12;
-        this.visualRoot.rotation.z = Math.sin(this.walkAnimTimer) * 0.08;
+        // Animation procédurale de marche fluide, dynamique et expressive (style Zelda)
+        this.walkAnimTimer += dt * 11.5;
+
+        // 1. Balancement opposé et naturel des jambes
+        const legSwing = Math.sin(this.walkAnimTimer) * 0.62;
+        if (this.legLRoot) {
+          this.legLRoot.rotation.x = legSwing;
+          // Soulèvement léger du pied qui avance
+          this.legLRoot.position.y = 0.44 + Math.max(0, -Math.sin(this.walkAnimTimer)) * 0.06;
+        }
+        if (this.legRRoot) {
+          this.legRRoot.rotation.x = -legSwing;
+          this.legRRoot.position.y = 0.44 + Math.max(0, Math.sin(this.walkAnimTimer)) * 0.06;
+        }
+
+        // 2. Balancement coordonné des bras (en opposition aux jambes)
+        if (this.armLRoot && !this.weapon.isSlashing) {
+          this.armLRoot.rotation.x = -legSwing * 0.72;
+          this.armLRoot.rotation.y = 0;
+          this.armLRoot.rotation.z = -0.08;
+        }
+        if (this.armRRoot && !this.weapon.isSlashing) {
+          if (!this.isTorchMode) {
+            // L'épée est fermement tenue dans la main droite, oscillant avec le pas
+            this.armRRoot.rotation.x = -0.30 + legSwing * 0.38;
+            this.armRRoot.rotation.y = 0.10;
+            this.armRRoot.rotation.z = 0.12 + Math.abs(legSwing) * 0.04;
+          } else {
+            // Mode Torche : bras levé haut vers le ciel brandissant l'épée de lumière
+            this.armRRoot.rotation.x = -2.25;
+            this.armRRoot.rotation.y = -0.15;
+            this.armRRoot.rotation.z = 0.25;
+          }
+        }
+
+        // 3. Rebond vertical doux de la démarche et léger déhanchement
+        this.visualRoot.position.y = Math.abs(Math.sin(this.walkAnimTimer)) * 0.07;
+        this.visualRoot.rotation.z = Math.sin(this.walkAnimTimer) * 0.035;
+
+        // 4. Inclinaison athlétique vers l'avant (élan de course)
+        if (this.bodyMesh && !this.weapon.isSlashing) {
+          this.bodyMesh.rotation.x = 0.09;
+          this.bodyMesh.rotation.y = 0;
+          this.bodyMesh.rotation.z = 0;
+        }
+
+        // 5. Flottement physique secondaire de la chevelure
+        if (this.hairBack && !this.weapon.isSlashing) {
+          this.hairBack.rotation.x = -0.16 + Math.sin(this.walkAnimTimer * 2) * 0.05;
+        }
 
         // Bruit de pas
         this.stepAudioTimer += dt;
@@ -401,9 +526,50 @@ export class Player {
           this.audio.playStep();
         }
       } else {
-        // Au repos
-        this.visualRoot.position.y = 0;
-        this.visualRoot.rotation.z = 0;
+        // Au repos : transition douce vers la pose neutre avec respiration
+        const returnSpeed = Math.min(1.0, dt * 12);
+        if (this.legLRoot && !this.weapon.isSlashing) {
+          this.legLRoot.rotation.x *= (1 - returnSpeed);
+          this.legLRoot.position.y += (0.44 - this.legLRoot.position.y) * returnSpeed;
+        }
+        if (this.legRRoot && !this.weapon.isSlashing) {
+          this.legRRoot.rotation.x *= (1 - returnSpeed);
+          this.legRRoot.position.y += (0.44 - this.legRRoot.position.y) * returnSpeed;
+        }
+        if (this.armLRoot && !this.weapon.isSlashing) {
+          this.armLRoot.rotation.x *= (1 - returnSpeed);
+          this.armLRoot.rotation.y *= (1 - returnSpeed);
+          this.armLRoot.rotation.z *= (1 - returnSpeed);
+        }
+        if (this.armRRoot && !this.weapon.isSlashing) {
+          if (!this.isTorchMode) {
+            this.armRRoot.rotation.x += (-0.30 - this.armRRoot.rotation.x) * returnSpeed;
+            this.armRRoot.rotation.y += (0.10 - this.armRRoot.rotation.y) * returnSpeed;
+            this.armRRoot.rotation.z += (0.12 - this.armRRoot.rotation.z) * returnSpeed;
+          } else {
+            this.armRRoot.rotation.x += (-2.25 - this.armRRoot.rotation.x) * returnSpeed;
+            this.armRRoot.rotation.y += (-0.15 - this.armRRoot.rotation.y) * returnSpeed;
+            this.armRRoot.rotation.z += (0.25 - this.armRRoot.rotation.z) * returnSpeed;
+          }
+        }
+        if (this.bodyMesh && !this.weapon.isSlashing) {
+          this.bodyMesh.rotation.x *= (1 - returnSpeed);
+          this.bodyMesh.rotation.y *= (1 - returnSpeed);
+          this.bodyMesh.rotation.z *= (1 - returnSpeed);
+        }
+        if (this.headMesh && !this.weapon.isSlashing) {
+          this.headMesh.rotation.x *= (1 - returnSpeed);
+          this.headMesh.rotation.y *= (1 - returnSpeed);
+        }
+        if (this.hairBack && !this.weapon.isSlashing) {
+          this.hairBack.rotation.x *= (1 - returnSpeed);
+        }
+
+        this.idleTimer = (this.idleTimer || 0) + dt * 2.2;
+        if (!this.weapon.isSlashing) {
+          this.visualRoot.position.y = Math.sin(this.idleTimer) * 0.018;
+          this.visualRoot.rotation.z = 0;
+        }
         this.stepAudioTimer = 0.2;
       }
 
@@ -414,29 +580,160 @@ export class Player {
       this.facingAngle += angleDiff * Math.min(1.0, dt * 18);
       this.visualRoot.rotation.y = this.facingAngle;
 
-      // Cinétique corporelle dynamique lors de la frappe à l'épée (Arc de cercle parfait)
+      // === CINÉTIQUE CORPORELLE MARTIALE LORS DU COUP D'ÉPÉE ===
+      // Tout le corps réagit naturellement : enroulement, fente, découpe circulaire du bras droit
+      // avec l'épée fermement en main, contrepoids du bras gauche, regard fixé et amorti progressif.
       if (this.weapon.isSlashing) {
         const slashP = this.weapon.getProgress();
-        if (slashP < 0.10) {
-          // Windup : le torse pivote vers la droite pour amorcer l'arc
-          const w = slashP / 0.10;
-          this.visualRoot.position.z = 0;
-          this.visualRoot.rotation.x = 0;
-          this.visualRoot.rotation.y = this.facingAngle + w * 0.22;
+
+        if (slashP < 0.12) {
+          // --- 1. ARMEMENT / WINDUP (0.0 à 0.12) ---
+          const w = slashP / 0.12;
+
+          this.visualRoot.position.y = -w * 0.05;
+          this.visualRoot.position.z = -w * 0.05;
+          this.visualRoot.rotation.x = -w * 0.06;
+          this.visualRoot.rotation.y = this.facingAngle + w * 0.28;
+          this.visualRoot.rotation.z = w * 0.04;
+
+          if (this.bodyMesh) {
+            this.bodyMesh.rotation.y = w * 0.22;
+            this.bodyMesh.rotation.x = -w * 0.08;
+            this.bodyMesh.rotation.z = 0;
+          }
+
+          if (this.headMesh) {
+            this.headMesh.rotation.y = -w * 0.20;
+            this.headMesh.rotation.x = 0;
+          }
+
+          // Bras droit armé en haut à droite en arrière
+          if (this.armRRoot) {
+            this.armRRoot.rotation.x = -w * 1.35;
+            this.armRRoot.rotation.y = w * 0.55;
+            this.armRRoot.rotation.z = w * 0.40;
+          }
+
+          // Bras gauche en avant pour la garde
+          if (this.armLRoot) {
+            this.armLRoot.rotation.x = -w * 0.60;
+            this.armLRoot.rotation.y = w * 0.25;
+            this.armLRoot.rotation.z = -w * 0.18;
+          }
+
+          // Jambes fléchies pour l'élan
+          if (this.legLRoot) {
+            this.legLRoot.rotation.x = w * 0.25;
+            this.legLRoot.position.y = 0.44 - w * 0.04;
+          }
+          if (this.legRRoot) {
+            this.legRRoot.rotation.x = -w * 0.20;
+            this.legRRoot.position.y = 0.44 - w * 0.04;
+          }
+
+          if (this.hairBack) {
+            this.hairBack.rotation.x = w * 0.08;
+          }
         } else if (slashP < 0.62) {
-          // Frappe : rotation fluide du buste guidant l'arc de cercle parfait (sans projection avant excessive)
-          const u = (slashP - 0.10) / 0.52;
-          this.visualRoot.position.z = Math.sin(u * Math.PI) * 0.06;
-          this.visualRoot.rotation.x = 0;
-          // Balayage rotatif franc et centré de droite (+0.22) à gauche (-0.35)
-          this.visualRoot.rotation.y = this.facingAngle + 0.22 - u * 0.57;
+          // --- 2. LA FRAPPE TRANCHANTE (0.12 à 0.62) ---
+          const u = (slashP - 0.12) / 0.50;
+          const e = 1.0 - Math.pow(1.0 - u, 2.4); // Accélération explosive
+          const lunge = Math.sin(u * Math.PI);
+
+          // Rotation dynamique du corps entier de droite à gauche
+          this.visualRoot.rotation.y = this.facingAngle + 0.28 - e * 0.73;
+          this.visualRoot.position.z = lunge * 0.16;
+          this.visualRoot.position.y = -0.05 - lunge * 0.06;
+          this.visualRoot.rotation.x = lunge * 0.12;
+          this.visualRoot.rotation.z = -lunge * 0.06;
+
+          // Torse : inclinaison vers l'avant et torsion
+          if (this.bodyMesh) {
+            this.bodyMesh.rotation.x = lunge * 0.22;
+            this.bodyMesh.rotation.y = 0.22 - e * 0.58;
+            this.bodyMesh.rotation.z = -lunge * 0.10;
+          }
+
+          // Tête : regard maintenu sur la cible
+          if (this.headMesh) {
+            this.headMesh.rotation.y = (0.22 - e * 0.58) * -0.5;
+            this.headMesh.rotation.x = -lunge * 0.14;
+          }
+
+          // Bras droit : découpe circulaire énergique balayant le champ frontal
+          if (this.armRRoot) {
+            this.armRRoot.rotation.x = -1.35 + 1.05 * e; // De l'armement haut à la coupe horizontale
+            this.armRRoot.rotation.y = 0.55 - 1.90 * e;  // De droite (+0.55) vers la gauche (-1.35)
+            this.armRRoot.rotation.z = 0.40 - 0.85 * e;  // Extension dynamique
+          }
+
+          // Bras gauche : contrepoids cinétique jeté en arrière
+          if (this.armLRoot) {
+            this.armLRoot.rotation.x = -0.60 + 1.45 * e;
+            this.armLRoot.rotation.y = 0.25 - 0.45 * e;
+            this.armLRoot.rotation.z = -0.18 - lunge * 0.30;
+          }
+
+          // Jambes : fente martiale stable
+          if (this.legLRoot) {
+            this.legLRoot.rotation.x = 0.25 - 0.55 * e;
+            this.legLRoot.position.y = 0.44 - lunge * 0.05;
+          }
+          if (this.legRRoot) {
+            this.legRRoot.rotation.x = -0.20 + 0.50 * e;
+            this.legRRoot.position.y = 0.44 - lunge * 0.04;
+          }
+
+          // Cheveux : fouettent en arrière avec la vitesse de frappe
+          if (this.hairBack) {
+            this.hairBack.rotation.x = -0.15 - lunge * 0.32;
+          }
         } else {
-          // Retour doux à la garde
+          // --- 3. AMORTI & RETOUR EN GARDE (0.62 à 1.0) ---
           const u = (slashP - 0.62) / 0.38;
-          const r = 1.0 - u;
-          this.visualRoot.position.z = r * 0.03;
-          this.visualRoot.rotation.x = 0;
-          this.visualRoot.rotation.y = this.facingAngle - r * 0.35;
+          const r = 1.0 - Math.sin(u * Math.PI * 0.5);
+
+          this.visualRoot.rotation.y = this.facingAngle - r * 0.45;
+          this.visualRoot.position.z = r * 0.04;
+          this.visualRoot.position.y = -r * 0.03;
+          this.visualRoot.rotation.x = r * 0.03;
+          this.visualRoot.rotation.z = 0;
+
+          if (this.bodyMesh) {
+            this.bodyMesh.rotation.x = r * 0.06;
+            this.bodyMesh.rotation.y = -r * 0.36;
+            this.bodyMesh.rotation.z = 0;
+          }
+
+          if (this.headMesh) {
+            this.headMesh.rotation.y = r * 0.15;
+            this.headMesh.rotation.x = 0;
+          }
+
+          if (this.armRRoot) {
+            this.armRRoot.rotation.x = -0.30 * r + (-0.30) * (1 - r);
+            this.armRRoot.rotation.y = -1.35 * r + 0.10 * (1 - r);
+            this.armRRoot.rotation.z = -0.45 * r + 0.12 * (1 - r);
+          }
+
+          if (this.armLRoot) {
+            this.armLRoot.rotation.x = 0.85 * r;
+            this.armLRoot.rotation.y = -0.20 * r;
+            this.armLRoot.rotation.z = -0.18 * r;
+          }
+
+          if (this.legLRoot) {
+            this.legLRoot.rotation.x = -0.30 * r;
+            this.legLRoot.position.y = 0.44;
+          }
+          if (this.legRRoot) {
+            this.legRRoot.rotation.x = 0.30 * r;
+            this.legRRoot.position.y = 0.44;
+          }
+
+          if (this.hairBack) {
+            this.hairBack.rotation.x = -0.15 * r;
+          }
         }
       } else {
         this.visualRoot.position.z = 0;

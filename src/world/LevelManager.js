@@ -48,34 +48,33 @@ export class LevelManager {
     archMat.diffuseColor = new Color3(0.35, 0.35, 0.4);
     archMat.freeze();
 
-    // Arche de pierre
-    const pillarL = MeshBuilder.CreateBox('arch_e_l', { width: 1.5, height: 4.5, depth: 3 }, this.scene);
+    // Arche de pierre robuste parfaitement encastrée dans la brèche de la falaise (z = -0.5 à 4.5)
+    const pillarL = MeshBuilder.CreateBox('arch_e_l', { width: 2.2, height: 4.8, depth: 1.6 }, this.scene);
     pillarL.material = archMat;
-    pillarL.position.set(23, 2.25, 0.2);
+    pillarL.position.set(24.0, 2.25, 0.3);
     pillarL.parent = this.root;
     pillarL.freezeWorldMatrix();
 
-    const pillarR = MeshBuilder.CreateBox('arch_e_r', { width: 1.5, height: 4.5, depth: 3 }, this.scene);
+    const pillarR = MeshBuilder.CreateBox('arch_e_r', { width: 2.2, height: 4.8, depth: 1.6 }, this.scene);
     pillarR.material = archMat;
-    pillarR.position.set(23, 2.25, 3.8);
+    pillarR.position.set(24.0, 2.25, 3.7);
     pillarR.parent = this.root;
     pillarR.freezeWorldMatrix();
 
-    const topBeam = MeshBuilder.CreateBox('arch_e_top', { width: 1.8, height: 1.2, depth: 5.2 }, this.scene);
+    const topBeam = MeshBuilder.CreateBox('arch_e_top', { width: 2.4, height: 1.3, depth: 5.0 }, this.scene);
     topBeam.material = archMat;
-    topBeam.position.set(23, 4.2, 2);
+    topBeam.position.set(24.0, 4.4, 2.0);
     topBeam.parent = this.root;
     topBeam.freezeWorldMatrix();
 
-    // Entrée sombre vers l'intérieur (Fond obscur)
+    // Entrée sombre vers l'intérieur (Fond obscur 3D)
     const darkMat = new StandardMaterial('mat_cave_darkness', this.scene);
-    darkMat.diffuseColor = new Color3(0.02, 0.02, 0.04);
+    darkMat.diffuseColor = new Color3(0.01, 0.01, 0.02);
     darkMat.specularColor = new Color3(0, 0, 0);
 
-    const darkBacking = MeshBuilder.CreatePlane('cave_dark_plane', { width: 4.8, height: 4.2 }, this.scene);
-    darkBacking.rotation.y = Math.PI / 2;
+    const darkBacking = MeshBuilder.CreateBox('cave_dark_chamber', { width: 2.6, height: 4.4, depth: 3.4 }, this.scene);
     darkBacking.material = darkMat;
-    darkBacking.position.set(24.5, 2.1, 2);
+    darkBacking.position.set(25.5, 2.1, 2.0);
     darkBacking.parent = this.root;
     darkBacking.freezeWorldMatrix();
 
@@ -83,8 +82,8 @@ export class LevelManager {
     this.interactables.push({
       id: 'east_cave',
       title: "Caverne du Gardien",
-      position: new Vector3(22.5, 1.2, 2),
-      radius: 2.8,
+      position: new Vector3(22.0, 1.2, 2.0),
+      radius: 2.0,
       promptText: "[E] Examiner l'entree",
       speaker: "Zelya",
       text: "L'entrée de la Caverne du Gardien. Une brise fraîche et une obscurité dense s'en échappent... Mon épée se met à luire doucement. C'est ici que repose la première clé !"
@@ -97,27 +96,34 @@ export class LevelManager {
     ruinMat.diffuseColor = new Color3(0.48, 0.42, 0.38);
     ruinMat.freeze();
 
-    // Colonnes antiques
-    const colL = MeshBuilder.CreateCylinder('ruin_col_l', { height: 4.5, diameter: 1.3, tessellation: 8 }, this.scene);
+    // Colonnes antiques encastrées dans la brèche de la falaise (z = -0.5 à 4.5)
+    const colL = MeshBuilder.CreateCylinder('ruin_col_l', { height: 4.8, diameter: 1.4, tessellation: 8 }, this.scene);
     colL.material = ruinMat;
-    colL.position.set(-23, 2.25, 0.2);
+    colL.position.set(-24.0, 2.25, 0.3);
     colL.parent = this.root;
     colL.freezeWorldMatrix();
 
-    const colR = MeshBuilder.CreateCylinder('ruin_col_r', { height: 4.5, diameter: 1.3, tessellation: 8 }, this.scene);
+    const colR = MeshBuilder.CreateCylinder('ruin_col_r', { height: 4.8, diameter: 1.4, tessellation: 8 }, this.scene);
     colR.material = ruinMat;
-    colR.position.set(-23, 2.25, 3.8);
+    colR.position.set(-24.0, 2.25, 3.7);
     colR.parent = this.root;
     colR.freezeWorldMatrix();
 
-    // Grille de bronze scellée
+    // Fronton / Linteau antique en pierre reliant les colonnes
+    const lintel = MeshBuilder.CreateBox('ruin_arch_top', { width: 2.2, height: 1.3, depth: 5.0 }, this.scene);
+    lintel.material = ruinMat;
+    lintel.position.set(-24.0, 4.4, 2.0);
+    lintel.parent = this.root;
+    lintel.freezeWorldMatrix();
+
+    // Grille de bronze scellée (ajustée précisément entre les colonnes)
     const gateMat = new StandardMaterial('mat_bronze_gate', this.scene);
     gateMat.diffuseColor = new Color3(0.55, 0.38, 0.18);
     gateMat.specularColor = new Color3(0.6, 0.4, 0.2);
 
-    const gate = MeshBuilder.CreateBox('west_gate', { width: 0.3, height: 3.8, depth: 4.2 }, this.scene);
+    const gate = MeshBuilder.CreateBox('west_gate', { width: 0.28, height: 3.8, depth: 3.2 }, this.scene);
     gate.material = gateMat;
-    gate.position.set(-23, 1.9, 2);
+    gate.position.set(-24.0, 1.9, 2.0);
     gate.parent = this.root;
     this.westGateMesh = gate;
 
@@ -125,8 +131,8 @@ export class LevelManager {
     this.interactables.push({
       id: 'west_sanctuary',
       title: "Sanctuaire des Ruines",
-      position: new Vector3(-21.8, 1.2, 2),
-      radius: 2.8,
+      position: new Vector3(-21.8, 1.2, 2.0),
+      radius: 2.0,
       promptText: "[E] Examiner la grille",
       speaker: "Grille Scellee",
       getText: () => {
@@ -144,33 +150,41 @@ export class LevelManager {
     portalMat.diffuseColor = new Color3(0.28, 0.25, 0.35);
     portalMat.freeze();
 
-    // Grande arche monolithique
-    const postL = MeshBuilder.CreateBox('boss_p_l', { width: 2.2, height: 6.0, depth: 3.0 }, this.scene);
+    // Piliers monolithiques massifs bordant la brèche (x = -3.5 à 3.5)
+    const postL = MeshBuilder.CreateBox('boss_p_l', { width: 1.8, height: 6.2, depth: 3.2 }, this.scene);
     postL.material = portalMat;
-    postL.position.set(-3.2, 3.0, 23.5);
+    postL.position.set(-2.8, 3.0, 23.8);
     postL.parent = this.root;
     postL.freezeWorldMatrix();
 
-    const postR = MeshBuilder.CreateBox('boss_p_r', { width: 2.2, height: 6.0, depth: 3.0 }, this.scene);
+    const postR = MeshBuilder.CreateBox('boss_p_r', { width: 1.8, height: 6.2, depth: 3.2 }, this.scene);
     postR.material = portalMat;
-    postR.position.set(3.2, 3.0, 23.5);
+    postR.position.set(2.8, 3.0, 23.8);
     postR.parent = this.root;
     postR.freezeWorldMatrix();
 
-    const topLintel = MeshBuilder.CreateBox('boss_p_top', { width: 8.6, height: 1.8, depth: 3.2 }, this.scene);
+    // Grand linteau sommital reliant les piliers et les falaises
+    const topLintel = MeshBuilder.CreateBox('boss_p_top', { width: 7.6, height: 1.8, depth: 3.4 }, this.scene);
     topLintel.material = portalMat;
-    topLintel.position.set(0, 5.8, 23.5);
+    topLintel.position.set(0, 5.8, 23.8);
     topLintel.parent = this.root;
     topLintel.freezeWorldMatrix();
 
-    // Battant de la porte massive en fer sombre
+    // Fond mural sombre arrière empêchant de voir le vide derrière la porte
+    const backWall = MeshBuilder.CreateBox('boss_back_wall', { width: 4.8, height: 5.5, depth: 1.2 }, this.scene);
+    backWall.material = portalMat;
+    backWall.position.set(0, 2.75, 25.2);
+    backWall.parent = this.root;
+    backWall.freezeWorldMatrix();
+
+    // Battant de la porte massive en fer sombre (parfaitement intégré dans le portail)
     const ironDoorMat = new StandardMaterial('mat_boss_door_iron', this.scene);
     ironDoorMat.diffuseColor = new Color3(0.18, 0.16, 0.22);
     ironDoorMat.specularColor = new Color3(0.3, 0.3, 0.4);
 
-    const doorMesh = MeshBuilder.CreateBox('boss_door_mesh', { width: 5.2, height: 5.0, depth: 0.6 }, this.scene);
+    const doorMesh = MeshBuilder.CreateBox('boss_door_mesh', { width: 4.2, height: 5.0, depth: 0.6 }, this.scene);
     doorMesh.material = ironDoorMat;
-    doorMesh.position.set(0, 2.5, 23.6);
+    doorMesh.position.set(0, 2.5, 24.2);
     doorMesh.parent = this.root;
 
     // Serrure du Boss ornée d'un crâne / orbe violet
@@ -180,15 +194,15 @@ export class LevelManager {
 
     const lockMesh = MeshBuilder.CreateSphere('boss_lock_orb', { diameter: 0.75 }, this.scene);
     lockMesh.material = lockMat;
-    lockMesh.position.set(0, 2.5, 23.2);
+    lockMesh.position.set(0, 2.5, 23.8);
     lockMesh.parent = this.root;
 
     // Déclencheur interactif narratif majeur
     this.interactables.push({
       id: 'north_boss_door',
       title: "Chambre de Gallen",
-      position: new Vector3(0, 1.2, 21.5),
-      radius: 3.2,
+      position: new Vector3(0, 1.2, 22.6),
+      radius: 2.0,
       promptText: "[E] Ecouter a la porte",
       speaker: "Lyo & Gallen",
       getText: () => {
@@ -226,7 +240,7 @@ export class LevelManager {
       id: 'spawn_sign',
       title: "Panneau de la Plaine d'Eveil",
       position: new Vector3(2.4, 1.0, -3.2),
-      radius: 2.2,
+      radius: 1.8,
       promptText: "[E] Lire le panneau",
       speaker: "Panneau d'information",
       text: "Bienvenue dans la Plaine d'Eveil ! Deplacez-vous avec ZQSD / WASD / Fleches. Tournez la camera avec [Clic Droit] ou [Molette] (recentrage avec [R]). Tranchez les buissons avec [Espace] ou [J]. Brandissez la Lumiere avec [Shift]. Lyo est retenu au Nord !"
@@ -270,17 +284,29 @@ export class LevelManager {
     });
   }
 
-  // Trouve l'élément interactif le plus proche du joueur
-  getNearestInteractable(playerPos) {
+  // Trouve l'élément interactif le plus proche du joueur (avec validation de distance et d'orientation)
+  getNearestInteractable(playerPos, playerFacingAngle = null) {
     let nearest = null;
     let minDist = Infinity;
 
     this.interactables.forEach(item => {
-      const dx = playerPos.x - item.position.x;
-      const dz = playerPos.z - item.position.z;
+      const dx = item.position.x - playerPos.x;
+      const dz = item.position.z - playerPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
 
       if (dist <= item.radius && dist < minDist) {
+        // Si un angle de regard est fourni, vérifier que Zelya regarde globalement vers l'objet (exclut le dos)
+        if (playerFacingAngle !== null && playerFacingAngle !== undefined) {
+          const forwardX = Math.sin(playerFacingAngle);
+          const forwardZ = Math.cos(playerFacingAngle);
+          const dirX = dx / dist;
+          const dirZ = dz / dist;
+          const dot = forwardX * dirX + forwardZ * dirZ;
+          // dot < -0.2 signifie que le joueur tourne complètement le dos à l'objet
+          if (dot < -0.2) {
+            return;
+          }
+        }
         minDist = dist;
         nearest = item;
       }
@@ -324,19 +350,19 @@ export class LevelManager {
 
     // 2. Portes & Passages
     // Grille de bronze scellée (Ouest) & colonnes
-    collisionManager.addBox(-23.4, -22.6, -0.1, 4.1, 'west_gate');
-    collisionManager.addCircle(-23, 0.2, 0.65, 'west_col_l');
-    collisionManager.addCircle(-23, 3.8, 0.65, 'west_col_r');
+    collisionManager.addBox(-25.2, -22.8, -0.6, 1.1, 'west_col_l');
+    collisionManager.addBox(-25.2, -22.8, 2.9, 4.6, 'west_col_r');
+    collisionManager.addBox(-24.4, -23.6, 0.6, 3.4, 'west_gate');
 
     // Porte imposante du Boss (Nord) & monolithes
-    collisionManager.addBox(-2.6, 2.6, 23.2, 24.0, 'boss_door');
-    collisionManager.addBox(-4.3, -2.1, 22.0, 25.0, 'boss_post_l');
-    collisionManager.addBox(2.1, 4.3, 22.0, 25.0, 'boss_post_r');
+    collisionManager.addBox(-2.0, 2.0, 23.6, 24.8, 'boss_door');
+    collisionManager.addBox(-3.8, -1.8, 22.2, 25.4, 'boss_post_l');
+    collisionManager.addBox(1.8, 3.8, 22.2, 25.4, 'boss_post_r');
 
     // Piliers de l'arche de la Caverne (Est) & fond obscur
-    collisionManager.addBox(22.2, 23.8, -1.0, 1.2, 'east_pillar_l');
-    collisionManager.addBox(22.2, 23.8, 2.8, 4.8, 'east_pillar_r');
-    collisionManager.addBox(24.2, 25.5, -0.4, 4.4, 'east_cave_darkness');
+    collisionManager.addBox(22.8, 25.2, -0.6, 1.1, 'east_pillar_l');
+    collisionManager.addBox(22.8, 25.2, 2.9, 4.6, 'east_pillar_r');
+    collisionManager.addBox(24.2, 26.8, 0.6, 3.4, 'east_cave_darkness');
 
     // 3. Buissons tranchables : actifs uniquement tant qu'ils ne sont pas coupés
     collisionManager.addDynamicSource(() => {

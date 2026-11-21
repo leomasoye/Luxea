@@ -17,10 +17,12 @@ export class EnvironmentManager {
   constructor(scene) {
     this.scene = scene;
     this.root = new TransformNode('EnvironmentRoot', this.scene);
+    this.rockColliders = [];
 
     this.initTerrain();
     this.initPaths();
     this.initCliffsAndTrees();
+    this.initRocks();
   }
 
   initTerrain() {
@@ -122,17 +124,18 @@ export class EnvironmentManager {
     // Parois Sud (fermée derrière le spawn)
     createCliffBlock('cliff_s', 54, 4.5, 4, 0, 2.25, -24);
 
-    // Parois Est (avec brèche vers la caverne à z = 2)
-    createCliffBlock('cliff_e_north', 4, 4.5, 22, 25, 2.25, 14);
-    createCliffBlock('cliff_e_south', 4, 4.5, 22, 25, 2.25, -12);
+    // Parois Est (avec brèche centrée à z = 2 pour l'arche de la caverne)
+    // Brèche de z = -0.5 à z = 4.5 (largeur 5.0).
+    createCliffBlock('cliff_e_south', 4, 4.5, 23.5, 25, 2.25, -12.25);
+    createCliffBlock('cliff_e_north', 4, 4.5, 19.5, 25, 2.25, 14.25);
 
-    // Parois Ouest (avec brèche vers la grille à z = 2)
-    createCliffBlock('cliff_w_north', 4, 4.5, 22, -25, 2.25, 14);
-    createCliffBlock('cliff_w_south', 4, 4.5, 22, -25, 2.25, -12);
+    // Parois Ouest (avec brèche centrée à z = 2 pour la grille du sanctuaire)
+    createCliffBlock('cliff_w_south', 4, 4.5, 23.5, -25, 2.25, -12.25);
+    createCliffBlock('cliff_w_north', 4, 4.5, 19.5, -25, 2.25, 14.25);
 
-    // Parois Nord (avec brèche pour la Porte du Boss à x = 0)
-    createCliffBlock('cliff_n_east', 22, 5.5, 4, 15, 2.75, 24);
-    createCliffBlock('cliff_n_west', 22, 5.5, 4, -15, 2.75, 24);
+    // Parois Nord (avec brèche centrée à x = 0 pour la Porte du Boss, de x = -3.5 à x = 3.5)
+    createCliffBlock('cliff_n_east', 22.5, 5.5, 4, 14.75, 2.75, 24);
+    createCliffBlock('cliff_n_west', 22.5, 5.5, 4, -14.75, 2.75, 24);
 
     // Fonction de création d'arbres low-poly décoratifs
     const createTree = (name, x, z, scale = 1) => {
@@ -182,7 +185,76 @@ export class EnvironmentManager {
   }
 
   /**
-   * Enregistre les hitboxes des murs, falaises et arbres dans le CollisionManager.
+   * Initialise des formations rocheuses low-poly incassables dans les 4 coins et le long des bordures.
+   */
+  initRocks() {
+    const rockMat = new StandardMaterial('mat_rock_boulder', this.scene);
+    rockMat.diffuseColor = new Color3(0.38, 0.41, 0.45); // Pierre granite ardoise rétro
+    rockMat.specularColor = new Color3(0.08, 0.08, 0.10);
+    rockMat.freeze();
+
+    // Positions stratégiques des rochers dans les coins et sur les côtés
+    const rockData = [
+      // 1. Coin Sud-Ouest (derrière et à gauche du spawn)
+      { x: -19.5, z: -18.0, sx: 1.8, sy: 1.5, sz: 1.9, rotY: 0.6, r: 1.6 },
+      { x: -21.2, z: -15.5, sx: 1.3, sy: 1.2, sz: 1.2, rotY: 1.4, r: 1.1 },
+      { x: -17.2, z: -20.2, sx: 1.0, sy: 0.8, sz: 1.1, rotY: 2.1, r: 0.8 },
+
+      // 2. Coin Sud-Est (derrière et à droite du spawn)
+      { x: 19.5, z: -18.0, sx: 1.9, sy: 1.6, sz: 1.7, rotY: 0.9, r: 1.6 },
+      { x: 21.5, z: -15.8, sx: 1.2, sy: 1.1, sz: 1.3, rotY: 2.3, r: 1.1 },
+      { x: 17.5, z: -20.5, sx: 1.1, sy: 0.9, sz: 0.9, rotY: 1.1, r: 0.85 },
+
+      // 3. Coin Nord-Ouest (près des falaises Nord-Ouest)
+      { x: -18.5, z: 18.5, sx: 2.1, sy: 1.8, sz: 2.0, rotY: 1.2, r: 1.8 },
+      { x: -21.0, z: 16.0, sx: 1.4, sy: 1.3, sz: 1.4, rotY: 0.4, r: 1.2 },
+      { x: -15.8, z: 20.8, sx: 1.1, sy: 1.0, sz: 1.0, rotY: 2.8, r: 0.9 },
+
+      // 4. Coin Nord-Est (près des falaises Nord-Est)
+      { x: 18.5, z: 18.5, sx: 2.0, sy: 1.7, sz: 1.9, rotY: 1.8, r: 1.7 },
+      { x: 21.0, z: 16.2, sx: 1.3, sy: 1.2, sz: 1.3, rotY: 0.7, r: 1.2 },
+      { x: 15.6, z: 20.5, sx: 1.0, sy: 0.9, sz: 1.1, rotY: 2.2, r: 0.9 },
+
+      // 5. Bordures Ouest (le long des falaises vers le sanctuaire)
+      { x: -21.5, z: -3.5, sx: 1.5, sy: 1.4, sz: 1.6, rotY: 0.5, r: 1.3 },
+      { x: -21.5, z: 7.5, sx: 1.6, sy: 1.3, sz: 1.5, rotY: 1.9, r: 1.3 },
+      { x: -22.0, z: -8.5, sx: 1.3, sy: 1.1, sz: 1.4, rotY: 2.6, r: 1.1 },
+
+      // 6. Bordures Est (le long des falaises vers la caverne)
+      { x: 21.5, z: -3.5, sx: 1.5, sy: 1.3, sz: 1.6, rotY: 1.1, r: 1.3 },
+      { x: 21.5, z: 7.5, sx: 1.6, sy: 1.4, sz: 1.5, rotY: 2.4, r: 1.3 },
+      { x: 22.0, z: -8.5, sx: 1.3, sy: 1.0, sz: 1.3, rotY: 0.3, r: 1.1 },
+
+      // 7. Bordures Nord (flanquant la Porte du Boss)
+      { x: -6.5, z: 22.0, sx: 1.7, sy: 1.9, sz: 1.6, rotY: 0.8, r: 1.5 },
+      { x: 6.5, z: 22.0, sx: 1.7, sy: 1.9, sz: 1.6, rotY: 2.2, r: 1.5 },
+
+      // 8. Bordures Sud (derrière le spawn)
+      { x: -8.0, z: -19.5, sx: 1.4, sy: 1.2, sz: 1.3, rotY: 1.5, r: 1.2 },
+      { x: 8.0, z: -19.5, sx: 1.3, sy: 1.1, sz: 1.4, rotY: 2.0, r: 1.1 }
+    ];
+
+    rockData.forEach((d, idx) => {
+      // Sphère basse résolution (segments: 4) = aspect bloc rocheux polyédrique facetté
+      const rock = MeshBuilder.CreateSphere(`rock_boulder_${idx}`, {
+        diameter: 1.8,
+        segments: 4
+      }, this.scene);
+      rock.material = rockMat;
+      rock.scaling.set(d.sx, d.sy, d.sz);
+      rock.rotation.y = d.rotY;
+      rock.rotation.x = 0.15;
+      // Semi-enterré pour un ancrage naturel dans le sol
+      rock.position.set(d.x, (d.sy * 0.9) * 0.42, d.z);
+      rock.parent = this.root;
+      rock.freezeWorldMatrix();
+
+      this.rockColliders.push({ x: d.x, z: d.z, r: d.r });
+    });
+  }
+
+  /**
+   * Enregistre les hitboxes des murs, falaises, arbres et rochers dans le CollisionManager.
    */
   initColliders(collisionManager) {
     if (!collisionManager) return;
@@ -191,17 +263,17 @@ export class EnvironmentManager {
     // Parois Sud (fermée derrière le spawn)
     collisionManager.addBox(-27, 27, -26, -22, 'cliff_s');
 
-    // Parois Est (avec brèche pour l'arche à z = 2)
-    collisionManager.addBox(23, 27, 3, 25, 'cliff_e_north');
-    collisionManager.addBox(23, 27, -23, -1, 'cliff_e_south');
+    // Parois Est (avec brèche centrée à z = 2)
+    collisionManager.addBox(23, 27, 4.5, 25, 'cliff_e_north');
+    collisionManager.addBox(23, 27, -24, -0.5, 'cliff_e_south');
 
-    // Parois Ouest (avec brèche pour la grille à z = 2)
-    collisionManager.addBox(-27, -23, 3, 25, 'cliff_w_north');
-    collisionManager.addBox(-27, -23, -23, -1, 'cliff_w_south');
+    // Parois Ouest (avec brèche centrée à z = 2)
+    collisionManager.addBox(-27, -23, 4.5, 25, 'cliff_w_north');
+    collisionManager.addBox(-27, -23, -24, -0.5, 'cliff_w_south');
 
-    // Parois Nord (avec brèche pour la Porte du Boss à x = 0)
-    collisionManager.addBox(4, 26, 22, 26, 'cliff_n_east');
-    collisionManager.addBox(-26, -4, 22, 26, 'cliff_n_west');
+    // Parois Nord (avec brèche centrée à x = 0 pour la Porte du Boss)
+    collisionManager.addBox(3.5, 27, 22, 26, 'cliff_n_east');
+    collisionManager.addBox(-27, -3.5, 22, 26, 'cliff_n_west');
 
     // 2. Arbres (Troncs solides)
     const treePositions = [
@@ -220,5 +292,12 @@ export class EnvironmentManager {
     treePositions.forEach(t => {
       collisionManager.addCircle(t.x, t.z, 0.65 * t.s, 'tree');
     });
+
+    // 3. Rochers incassables (coins et bordures latérales)
+    if (this.rockColliders) {
+      this.rockColliders.forEach((rock, idx) => {
+        collisionManager.addCircle(rock.x, rock.z, rock.r * 0.85, `rock_${idx}`);
+      });
+    }
   }
 }

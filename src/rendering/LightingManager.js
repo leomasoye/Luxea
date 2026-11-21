@@ -1,4 +1,4 @@
-﻿import {
+import {
   HemisphericLight,
   DirectionalLight,
   PointLight,
@@ -25,62 +25,63 @@ export class LightingManager {
     this.glowLayer = null;
 
     // État de la lumière de l'épée
-    this.baseSwordIntensity = 1.2;
-    this.torchSwordIntensity = 3.0;
-    this.currentIntensity = 1.2;
-    this.targetIntensity = 1.2;
+    this.baseSwordIntensity = 2.4;
+    this.torchSwordIntensity = 5.2;
+    this.currentIntensity = 2.4;
+    this.targetIntensity = 2.4;
 
-    this.baseRange = 6.0;
-    this.torchRange = 14.0;
-    this.currentRange = 6.0;
+    this.baseRange = 9.5;
+    this.torchRange = 22.0;
+    this.currentRange = 9.5;
 
     this.init();
   }
 
   init() {
-    // 1. Lumière hémisphérique d'ambiance (ciel doux bleuté / sol verdoyant)
+    // 1. Ambiance crépusculaire / pénombre mystique
+    // L'intensité ambiante est assombrie afin que la lumière de l'épée ait un impact immédiat et spectaculaire
     this.ambientLight = new HemisphericLight(
       'AmbientLight',
       new Vector3(0, 1, 0),
       this.scene
     );
-    this.ambientLight.diffuse = new Color3(0.85, 0.9, 1.0);
-    this.ambientLight.groundColor = new Color3(0.2, 0.35, 0.22);
-    this.ambientLight.intensity = 0.75;
+    this.ambientLight.diffuse = new Color3(0.26, 0.32, 0.44); // Pénombre bleutée d'anciennes ruines
+    this.ambientLight.groundColor = new Color3(0.04, 0.07, 0.05); // Sol sombre dans les ombres
+    this.ambientLight.intensity = 0.32; // Assombri (vs 0.75 avant) pour valoriser les sources de lumière
 
-    // 2. Soleil chaud directionnel (doré rétro)
+    // 2. Soleil voilé / astre lointain rasant
     this.sunLight = new DirectionalLight(
       'SunLight',
-      new Vector3(-0.8, -1.8, -0.6).normalize(),
+      new Vector3(-0.7, -1.5, -0.6).normalize(),
       this.scene
     );
-    this.sunLight.diffuse = new Color3(1.0, 0.95, 0.75);
-    this.sunLight.specular = new Color3(0.2, 0.2, 0.2);
-    this.sunLight.intensity = 1.1;
+    this.sunLight.diffuse = new Color3(0.48, 0.54, 0.70);
+    this.sunLight.specular = new Color3(0.18, 0.18, 0.22);
+    this.sunLight.intensity = 0.35;
 
-    // 3. GlowLayer pour l'aura rétro lumineuse
+    // 3. GlowLayer rétro valorisant les lueurs dans la pénombre
     this.glowLayer = new GlowLayer('retroGlow', this.scene, {
       mainTextureRatio: 0.5,
       blurKernelSize: 16
     });
-    this.glowLayer.intensity = 0.85;
+    this.glowLayer.intensity = 0.95;
 
-    // 4. PointLight dynamique de l'ÉPÉE (Mécanique centrale)
-    // Budget GPU strict : une seule lumière dynamique.
+    // 4. PointLight dynamique de l'ÉPÉE (Source majeure de clarté et de jeu)
     this.swordLight = new PointLight(
       'SwordDynamicLight',
       new Vector3(0, 1.2, 0),
       this.scene
     );
-    this.swordLight.diffuse = new Color3(1.0, 0.92, 0.55); // Or / Lumière sacrée
-    this.swordLight.specular = new Color3(0.6, 0.5, 0.2);
+    this.swordLight.diffuse = new Color3(1.0, 0.88, 0.52); // Or chaleureux éclatant
+    this.swordLight.specular = new Color3(0.8, 0.7, 0.35);
     this.swordLight.intensity = this.baseSwordIntensity;
     this.swordLight.range = this.baseRange;
 
-    // Brouillard rétro léger pour la profondeur d'horizon
+    // 5. Brouillard sombre et atmosphérique / Occlusion ambiante
+    this.scene.clearColor = new Color3(0.07, 0.09, 0.14).toColor4(1.0);
     this.scene.fogMode = 2; // FOGMODE_EXP2
-    this.scene.fogDensity = 0.008;
-    this.scene.fogColor = new Color3(0.65, 0.82, 0.92);
+    this.scene.fogDensity = 0.022; // Densité tangible et mystérieuse sans être étouffante
+    this.scene.fogColor = new Color3(0.07, 0.09, 0.14); // Fusionne avec le ciel sombre
   }
 
   // Met à jour la position et l'intensité de la lumière de l'épée selon la jauge et le mode torche
@@ -92,18 +93,18 @@ export class LightingManager {
 
     // Calcul de l'intensité cible selon la jauge de lumière (0.0 à 1.0)
     let desiredIntensity = this.baseSwordIntensity * lightGaugeRatio;
-    let desiredRange = this.baseRange * (0.4 + 0.6 * lightGaugeRatio);
+    let desiredRange = this.baseRange * (0.45 + 0.55 * lightGaugeRatio);
 
     if (isTorchMode) {
-      // Mode Torche : boost de portée et luminosité
+      // Mode Torche : l'épée brandie perce la brume et éclaire toute la zone lointaine
       desiredIntensity = this.torchSwordIntensity * lightGaugeRatio;
       desiredRange = this.torchRange * lightGaugeRatio;
     }
 
-    // Flash lumineux bref lors d'une frappe à l'épée
+    // Flash lumineux spectaculaire lors d'une frappe à l'épée
     if (isSlashing) {
-      desiredIntensity *= 1.8;
-      desiredRange *= 1.3;
+      desiredIntensity *= 1.6;
+      desiredRange *= 1.25;
     }
 
     // Interpolation douce pour éviter tout clignotement brutal
