@@ -31,6 +31,7 @@ export class AudioManager {
   playDoorKnock() {}
   playDialogueLetter() {}
   playHurt() {}
+  playTorchIgnite() {}
   playGameOver() {}
   startAmbientDrone() {}
 }

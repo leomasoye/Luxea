@@ -5,56 +5,75 @@
  */
 export class CollisionManager {
   constructor() {
+    this.currentZone = 'plaine';
     this.staticColliders = [];
     this.dynamicSources = [];
   }
 
   /**
+   * Définit la zone active de collision ('plaine', 'cavern', etc.).
+   */
+  setZone(zone) {
+    this.currentZone = zone || 'plaine';
+  }
+
+  /**
    * Ajoute une boîte de collision alignée sur les axes (AABB) sur le plan XZ.
    */
-  addBox(minX, maxX, minZ, maxZ, tag = 'box') {
+  addBox(minX, maxX, minZ, maxZ, tag = 'box', zone = 'plaine') {
     this.staticColliders.push({
       type: 'box',
       minX: Math.min(minX, maxX),
       maxX: Math.max(minX, maxX),
       minZ: Math.min(minZ, maxZ),
       maxZ: Math.max(minZ, maxZ),
-      tag
+      tag,
+      zone
     });
   }
 
   /**
    * Ajoute un cylindre / cercle de collision sur le plan XZ.
    */
-  addCircle(x, z, radius, tag = 'circle') {
+  addCircle(x, z, radius, tag = 'circle', zone = 'plaine') {
     this.staticColliders.push({
       type: 'circle',
       x,
       z,
       radius,
-      tag
+      tag,
+      zone
     });
   }
 
   /**
    * Enregistre un fournisseur dynamique de colliders (ex: buissons non détruits).
    */
-  addDynamicSource(sourceFn) {
+  addDynamicSource(sourceFn, zone = 'plaine') {
     if (typeof sourceFn === 'function') {
-      this.dynamicSources.push(sourceFn);
+      this.dynamicSources.push({ fn: sourceFn, zone });
     }
   }
 
   /**
-   * Récupère la liste complète des colliders actifs (statiques + dynamiques).
+   * Récupère la liste complète des colliders actifs (statiques + dynamiques) pour la zone courante.
    */
   getAllColliders() {
-    const list = [...this.staticColliders];
+    const list = [];
+    for (let i = 0; i < this.staticColliders.length; i++) {
+      const col = this.staticColliders[i];
+      if (!col.zone || col.zone === this.currentZone) {
+        list.push(col);
+      }
+    }
     for (let i = 0; i < this.dynamicSources.length; i++) {
-      const dynamicItems = this.dynamicSources[i]();
-      if (dynamicItems && dynamicItems.length > 0) {
-        for (let j = 0; j < dynamicItems.length; j++) {
-          list.push(dynamicItems[j]);
+      const src = this.dynamicSources[i];
+      if (!src.zone || src.zone === this.currentZone) {
+        const dynamicItems = src.fn();
+        if (dynamicItems && dynamicItems.length > 0) {
+          for (let j = 0; j < dynamicItems.length; j++) {
+            list.push(dynamicItems[j]);
+          }
         }
       }
     }

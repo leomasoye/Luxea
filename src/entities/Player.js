@@ -294,6 +294,20 @@ export class Player {
     this.ui = ui;
   }
 
+  setBounds(bounds) {
+    if (bounds) {
+      this.bounds = { ...bounds };
+    }
+  }
+
+  setZone(zoneName) {
+    this.currentZone = zoneName || 'plaine';
+  }
+
+  setGroundHeightProvider(providerFn) {
+    this.groundHeightProvider = typeof providerFn === 'function' ? providerFn : null;
+  }
+
   // Position absolue dans l'espace 3D
   getPosition() {
     return this.root.position;
@@ -543,12 +557,22 @@ export class Player {
     // 2. Gestion de l'état Mode Torche
     this.isTorchMode = input.torchHeld && !this.isDodgeRolling;
 
-    // Rechargement naturel de la lumière dans la plaine ensoleillée (Hub)
-    if (!this.isTorchMode) {
-      this.lightGauge = Math.min(1.0, this.lightGauge + this.torchRechargeRate * dt);
+    // Gestion de la jauge de lumière selon la zone
+    if (this.currentZone === 'cavern') {
+      if (this.isTorchMode) {
+        // Consommation en mode torche dans l'obscurité (plancher de sécurité à 0.08)
+        this.lightGauge = Math.max(0.08, this.lightGauge - this.torchDrainRate * dt);
+      } else if (this.root.position.x < 184) {
+        // Rechargement près de l'ouverture lumineuse de sortie de la caverne
+        this.lightGauge = Math.min(1.0, this.lightGauge + this.torchRechargeRate * dt);
+      }
     } else {
-      // Consommation légère en mode torche
-      this.lightGauge = Math.max(0.05, this.lightGauge - this.torchDrainRate * dt);
+      // Rechargement naturel au soleil dans la Plaine d'Éveil
+      if (!this.isTorchMode) {
+        this.lightGauge = Math.min(1.0, this.lightGauge + this.torchRechargeRate * dt);
+      } else {
+        this.lightGauge = Math.max(0.05, this.lightGauge - this.torchDrainRate * dt);
+      }
     }
 
     // 3. Déplacement, Recul de dégâts & Roulade au sol
@@ -1001,9 +1025,17 @@ export class Player {
       }
     }
 
-    // 4. Bornage dans les limites de la plaine
+    // 4. Bornage dans les limites de la zone active
     this.root.position.x = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, this.root.position.x));
     this.root.position.z = Math.max(this.bounds.minZ, Math.min(this.bounds.maxZ, this.root.position.z));
+
+    // 4b. Ajustement fluide de la hauteur verticale (relief, rampes, terrasses surélevées)
+    if (this.groundHeightProvider) {
+      const targetY = this.groundHeightProvider(this.root.position.x, this.root.position.z);
+      this.root.position.y += (targetY - this.root.position.y) * Math.min(1.0, dt * 14);
+    } else {
+      this.root.position.y += (0 - this.root.position.y) * Math.min(1.0, dt * 14);
+    }
 
     // 5. Mise à jour de l'arme
     this.weapon.update(dt, this.isTorchMode);

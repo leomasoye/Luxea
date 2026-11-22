@@ -40,6 +40,7 @@ export class LevelManager {
     // Particules
     this.darknessParticles = [];
     this.ambientParticles = [];
+    this.caveMistParticles = [];
     this.ambientTime = 0;
 
     // Points d'intérêt et déclencheurs interactifs
@@ -59,51 +60,179 @@ export class LevelManager {
     this.initAmbientParticles();
   }
 
-  // --- 1. Chemin 1 (Est) : La Caverne du Gardien (Ouvert) ---
+  // --- 1. Chemin 1 (Est) : La Caverne du Gardien (Ouvert & Entrée Visuelle) ---
   initPassageEast() {
+    // Matériau Pierre de taille pour l'arche
     const archMat = new StandardMaterial('mat_cave_arch', this.scene);
-    archMat.diffuseColor = new Color3(0.35, 0.35, 0.4);
+    archMat.diffuseColor = new Color3(0.32, 0.35, 0.42);
+    archMat.specularColor = new Color3(0.06, 0.07, 0.08);
     archMat.freeze();
 
-    // Arche de pierre robuste parfaitement encastrée dans la brèche de la falaise (z = -0.5 à 4.5)
-    const pillarL = MeshBuilder.CreateBox('arch_e_l', { width: 2.2, height: 4.8, depth: 1.6 }, this.scene);
+    // Matériau Roche brute environnante
+    const roughRockMat = new StandardMaterial('mat_cave_rough_rock', this.scene);
+    roughRockMat.diffuseColor = new Color3(0.26, 0.28, 0.33);
+    roughRockMat.freeze();
+
+    // 1. Piliers massifs taillés encastrés dans la falaise (brèche z = -0.5 à 4.5)
+    // Pilier Sud (z = 0.1)
+    const pillarL = MeshBuilder.CreateBox('arch_e_l', { width: 2.2, height: 5.2, depth: 1.6 }, this.scene);
     pillarL.material = archMat;
-    pillarL.position.set(24.0, 2.25, 0.3);
+    pillarL.position.set(24.0, 2.4, 0.1);
     pillarL.parent = this.root;
     pillarL.freezeWorldMatrix();
 
-    const pillarR = MeshBuilder.CreateBox('arch_e_r', { width: 2.2, height: 4.8, depth: 1.6 }, this.scene);
+    // Pilier Nord (z = 3.9)
+    const pillarR = MeshBuilder.CreateBox('arch_e_r', { width: 2.2, height: 5.2, depth: 1.6 }, this.scene);
     pillarR.material = archMat;
-    pillarR.position.set(24.0, 2.25, 3.7);
+    pillarR.position.set(24.0, 2.4, 3.9);
     pillarR.parent = this.root;
     pillarR.freezeWorldMatrix();
 
-    const topBeam = MeshBuilder.CreateBox('arch_e_top', { width: 2.4, height: 1.3, depth: 5.0 }, this.scene);
+    // Linteau supérieur reliant les piliers
+    const topBeam = MeshBuilder.CreateBox('arch_e_top', { width: 2.4, height: 1.4, depth: 5.4 }, this.scene);
     topBeam.material = archMat;
-    topBeam.position.set(24.0, 4.4, 2.0);
+    topBeam.position.set(24.0, 4.6, 2.0);
     topBeam.parent = this.root;
     topBeam.freezeWorldMatrix();
 
-    // Entrée sombre vers l'intérieur (Fond obscur 3D)
-    const darkMat = new StandardMaterial('mat_cave_darkness', this.scene);
-    darkMat.diffuseColor = new Color3(0.01, 0.01, 0.02);
+    // Clé de voûte triangulaire taillée (fronton antique Zelda)
+    const keystone = MeshBuilder.CreateCylinder('arch_e_keystone', {
+      height: 2.2,
+      diameterTop: 0.2,
+      diameterBottom: 1.6,
+      tessellation: 3
+    }, this.scene);
+    keystone.material = archMat;
+    keystone.rotation.z = Math.PI / 2;
+    keystone.rotation.x = Math.PI;
+    keystone.position.set(23.7, 5.2, 2.0);
+    keystone.parent = this.root;
+    keystone.freezeWorldMatrix();
+
+    // 2. Rochers massifs facettés encadrant naturellement la bouche de la caverne
+    const boulderL = MeshBuilder.CreateSphere('cave_ent_boulder_l', { diameter: 2.4, segments: 4 }, this.scene);
+    boulderL.material = roughRockMat;
+    boulderL.scaling.set(1.4, 1.6, 1.2);
+    boulderL.position.set(23.2, 1.1, -0.6);
+    boulderL.rotation.y = 0.8;
+    boulderL.parent = this.root;
+    boulderL.freezeWorldMatrix();
+
+    const boulderR = MeshBuilder.CreateSphere('cave_ent_boulder_r', { diameter: 2.4, segments: 4 }, this.scene);
+    boulderR.material = roughRockMat;
+    boulderR.scaling.set(1.5, 1.7, 1.3);
+    boulderR.position.set(23.2, 1.2, 4.6);
+    boulderR.rotation.y = 2.1;
+    boulderR.parent = this.root;
+    boulderR.freezeWorldMatrix();
+
+    // 3. Seuil en dalles rocheuses sombres prolongeant le sentier dans la falaise
+    const thresholdMat = new StandardMaterial('mat_cave_threshold', this.scene);
+    thresholdMat.diffuseColor = new Color3(0.20, 0.22, 0.28);
+    thresholdMat.specularColor = new Color3(0.04, 0.04, 0.05);
+    thresholdMat.freeze();
+
+    const threshold = MeshBuilder.CreateGround('cave_threshold_path', { width: 4.5, height: 2.6 }, this.scene);
+    threshold.material = thresholdMat;
+    threshold.position.set(24.2, 0.02, 2.0);
+    threshold.parent = this.root;
+    threshold.freezeWorldMatrix();
+
+    // 4. Parois internes du tunnel d'entrée s'enfonçant dans l'obscurité
+    const tunnelMat = new StandardMaterial('mat_cave_tunnel_inner', this.scene);
+    tunnelMat.diffuseColor = new Color3(0.06, 0.07, 0.09);
+    tunnelMat.specularColor = new Color3(0, 0, 0);
+    tunnelMat.freeze();
+
+    // Mur interne Nord du tunnel
+    const tunWallN = MeshBuilder.CreateBox('cave_tun_wall_n', { width: 3.5, height: 4.8, depth: 1.2 }, this.scene);
+    tunWallN.material = tunnelMat;
+    tunWallN.position.set(25.8, 2.3, 3.7);
+    tunWallN.parent = this.root;
+    tunWallN.freezeWorldMatrix();
+
+    // Mur interne Sud du tunnel
+    const tunWallS = MeshBuilder.CreateBox('cave_tun_wall_s', { width: 3.5, height: 4.8, depth: 1.2 }, this.scene);
+    tunWallS.material = tunnelMat;
+    tunWallS.position.set(25.8, 2.3, 0.3);
+    tunWallS.parent = this.root;
+    tunWallS.freezeWorldMatrix();
+
+    // Plafond du tunnel
+    const tunCeil = MeshBuilder.CreateBox('cave_tun_ceil', { width: 3.5, height: 1.2, depth: 3.6 }, this.scene);
+    tunCeil.material = tunnelMat;
+    tunCeil.position.set(25.8, 4.4, 2.0);
+    tunCeil.parent = this.root;
+    tunCeil.freezeWorldMatrix();
+
+    // Fond obscur absolu au bout du boyau
+    const darkMat = new StandardMaterial('mat_cave_void', this.scene);
+    darkMat.diffuseColor = new Color3(0.005, 0.005, 0.01);
+    darkMat.emissiveColor = new Color3(0, 0, 0);
     darkMat.specularColor = new Color3(0, 0, 0);
+    darkMat.freeze();
 
-    const darkBacking = MeshBuilder.CreateBox('cave_dark_chamber', { width: 2.6, height: 4.4, depth: 3.4 }, this.scene);
-    darkBacking.material = darkMat;
-    darkBacking.position.set(25.5, 2.1, 2.0);
-    darkBacking.parent = this.root;
-    darkBacking.freezeWorldMatrix();
+    const voidBacking = MeshBuilder.CreateBox('cave_void_back', { width: 1.0, height: 4.4, depth: 2.8 }, this.scene);
+    voidBacking.material = darkMat;
+    voidBacking.position.set(27.0, 2.1, 2.0);
+    voidBacking.parent = this.root;
+    voidBacking.freezeWorldMatrix();
 
-    // Déclencheur interactif
+    // 5. Particules de brume fraîche s'échappant de la caverne
+    const mistMat = new StandardMaterial('mat_cave_mist', this.scene);
+    mistMat.diffuseColor = new Color3(0.4, 0.55, 0.7);
+    mistMat.emissiveColor = new Color3(0.15, 0.22, 0.35);
+    mistMat.specularColor = new Color3(0, 0, 0);
+    mistMat.freeze();
+
+    for (let i = 0; i < 9; i++) {
+      const mist = MeshBuilder.CreateBox(`cave_mist_${i}`, { width: 0.14, height: 0.14, depth: 0.14 }, this.scene);
+      mist.material = mistMat;
+      const baseX = 24.0 + Math.random() * 2.2;
+      const baseY = 0.4 + Math.random() * 2.2;
+      const baseZ = 1.0 + Math.random() * 2.0;
+      mist.position.set(baseX, baseY, baseZ);
+      mist.parent = this.root;
+
+      this.caveMistParticles.push({
+        mesh: mist,
+        baseX,
+        baseY,
+        baseZ,
+        speedX: -0.5 - Math.random() * 0.5, // Dérive vers l'extérieur (Ouest)
+        speedZ: (Math.random() - 0.5) * 0.25,
+        bobSpeed: 1.2 + Math.random() * 1.5,
+        seed: Math.random() * Math.PI * 2
+      });
+    }
+
+    // 6. Stèle ancienne de pierre sculptée sur le bas-côté (X = 21.6, Z = 0.2)
+    const steleMat = new StandardMaterial('mat_cave_stele', this.scene);
+    steleMat.diffuseColor = new Color3(0.42, 0.44, 0.48);
+    steleMat.specularColor = new Color3(0.1, 0.1, 0.12);
+    steleMat.freeze();
+
+    const steleBase = MeshBuilder.CreateBox('cave_stele_base', { width: 0.9, height: 0.3, depth: 0.9 }, this.scene);
+    steleBase.material = steleMat;
+    steleBase.position.set(21.6, 0.15, 0.1);
+    steleBase.parent = this.root;
+    steleBase.freezeWorldMatrix();
+
+    const stelePillar = MeshBuilder.CreateBox('cave_stele_pillar', { width: 0.6, height: 1.4, depth: 0.4 }, this.scene);
+    stelePillar.material = steleMat;
+    stelePillar.position.set(21.6, 0.9, 0.1);
+    stelePillar.parent = this.root;
+    stelePillar.freezeWorldMatrix();
+
+    // Déclencheur interactif de lore sur la stèle (hors de l'allée pour ne pas gêner le passage)
     this.interactables.push({
-      id: 'east_cave',
-      title: "Caverne du Gardien",
-      position: new Vector3(22.0, 1.2, 2.0),
-      radius: 2.0,
-      promptText: "[E] Examiner l'entree",
-      speaker: "Zelya",
-      text: "L'entrée de la Caverne du Gardien. Une brise fraîche et une obscurité dense s'en échappent... Mon épée se met à luire doucement. C'est ici que repose la première clé !"
+      id: 'east_cave_stele',
+      title: "Stèle de la Caverne",
+      position: new Vector3(21.6, 1.0, 0.1),
+      radius: 1.6,
+      promptText: "[E] Lire la stèle",
+      speaker: "Stèle ancienne",
+      text: "« Par-delà cette arche s'étend la Caverne du Gardien. Que la lumière de ton épée transperce les ténèbres qui s'y terrent. »"
     });
   }
 
@@ -521,6 +650,20 @@ export class LevelManager {
       const twinkle = 0.8 + 0.3 * Math.sin(this.ambientTime * 3.5 + p.seed);
       p.mesh.scaling.set(twinkle, twinkle, twinkle);
     });
+
+    // 7. Particules de brume froide s'échappant de la Caverne
+    this.caveMistParticles.forEach(p => {
+      p.mesh.position.x += p.speedX * dt;
+      p.mesh.position.z += p.speedZ * dt;
+      p.mesh.position.y = p.baseY + Math.sin(this.ambientTime * p.bobSpeed + p.seed) * 0.15;
+
+      // Recyclage vers le fond du tunnel
+      if (p.mesh.position.x < 22.8) {
+        p.mesh.position.x = 26.2;
+        p.mesh.position.z = 1.0 + Math.random() * 2.0;
+      }
+      p.mesh.rotation.y += dt * 0.8;
+    });
   }
 
   /**
@@ -543,10 +686,12 @@ export class LevelManager {
     collisionManager.addBox(-3.8, -1.8, 22.2, 25.4, 'boss_post_l');
     collisionManager.addBox(1.8, 3.8, 22.2, 25.4, 'boss_post_r');
 
-    // Piliers de l'arche de la Caverne (Est) & fond obscur
-    collisionManager.addBox(22.8, 25.2, -0.6, 1.1, 'east_pillar_l');
-    collisionManager.addBox(22.8, 25.2, 2.9, 4.6, 'east_pillar_r');
-    collisionManager.addBox(24.2, 26.8, 0.6, 3.4, 'east_cave_darkness');
+    // Arche et tunnel d'entrée de la Caverne (Est)
+    // Passage ouvert et libre au centre entre z = 0.9 et z = 3.1
+    collisionManager.addBox(22.8, 26.5, -0.8, 0.9, 'east_pillar_l');
+    collisionManager.addBox(22.8, 26.5, 3.1, 4.8, 'east_pillar_r');
+    // Stèle sculptée sur le côté Sud de l'entrée
+    collisionManager.addCircle(21.6, 0.1, 0.45, 'east_stele');
 
     // 3. Mannequin d'entraînement (solide)
     if (this.trainingDummy) {

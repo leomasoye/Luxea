@@ -53,6 +53,8 @@ export class UIManager {
     this.btnResetGame = document.getElementById('btn-reset-game');
     this.btnRespawn = document.getElementById('btn-respawn');
 
+    this.screenFade = document.getElementById('screen-fade');
+
     this.devStats = document.getElementById('dev-stats');
 
     this.tempVector = new Vector3();
@@ -362,5 +364,35 @@ export class UIManager {
     if (this.devStats) {
       this.devStats.textContent = `${Math.round(fps)} FPS`;
     }
+  }
+
+  /**
+   * Déclenche un fondu sombre progressif (fade to black) pour les transitions de zones.
+   */
+  fadeToBlack(duration = 380) {
+    return new Promise((resolve) => {
+      if (!this.screenFade) {
+        resolve();
+        return;
+      }
+      this.screenFade.style.transition = `opacity ${duration}ms ease-in-out`;
+      this.screenFade.classList.add('active');
+      setTimeout(resolve, duration);
+    });
+  }
+
+  /**
+   * Déclenche la réapparition progressive de l'image (fade from black).
+   */
+  fadeFromBlack(duration = 380) {
+    return new Promise((resolve) => {
+      if (!this.screenFade) {
+        resolve();
+        return;
+      }
+      this.screenFade.style.transition = `opacity ${duration}ms ease-in-out`;
+      this.screenFade.classList.remove('active');
+      setTimeout(resolve, duration);
+    });
   }
 }

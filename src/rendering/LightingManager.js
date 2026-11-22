@@ -84,6 +84,49 @@ export class LightingManager {
     this.scene.fogColor = new Color3(0.07, 0.09, 0.14); // Fusionne avec le ciel sombre
   }
 
+  /**
+   * Adapte l'éclairage et l'ambiance atmosphérique selon la zone active.
+   * En caverne : soleil coupé, pénombre mystique, fog dense, épée mise en valeur spectaculaire.
+   */
+  setZone(zone) {
+    if (zone === 'cavern') {
+      if (this.sunLight) {
+        this.sunLight.intensity = 0.0;
+      }
+      if (this.ambientLight) {
+        this.ambientLight.intensity = 0.10;
+        this.ambientLight.diffuse = new Color3(0.12, 0.15, 0.22);
+        this.ambientLight.groundColor = new Color3(0.015, 0.02, 0.03);
+      }
+      this.scene.clearColor = new Color3(0.012, 0.015, 0.022).toColor4(1.0);
+      this.scene.fogColor = new Color3(0.012, 0.015, 0.022);
+      this.scene.fogDensity = 0.034;
+
+      // La lueur de l'épée dans l'obscurité souterraine
+      this.baseSwordIntensity = 3.2;
+      this.torchSwordIntensity = 6.4;
+      this.baseRange = 12.0;
+      this.torchRange = 26.0;
+    } else {
+      if (this.sunLight) {
+        this.sunLight.intensity = 0.35;
+      }
+      if (this.ambientLight) {
+        this.ambientLight.intensity = 0.32;
+        this.ambientLight.diffuse = new Color3(0.26, 0.32, 0.44);
+        this.ambientLight.groundColor = new Color3(0.04, 0.07, 0.05);
+      }
+      this.scene.clearColor = new Color3(0.07, 0.09, 0.14).toColor4(1.0);
+      this.scene.fogColor = new Color3(0.07, 0.09, 0.14);
+      this.scene.fogDensity = 0.022;
+
+      this.baseSwordIntensity = 2.4;
+      this.torchSwordIntensity = 5.2;
+      this.baseRange = 9.5;
+      this.torchRange = 22.0;
+    }
+  }
+
   // Met à jour la position et l'intensité de la lumière de l'épée selon la jauge et le mode torche
   update(swordWorldPos, lightGaugeRatio, isTorchMode, isSlashing, dt) {
     if (!this.swordLight || !swordWorldPos) return;

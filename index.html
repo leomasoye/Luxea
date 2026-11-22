@@ -288,6 +288,25 @@
       50%, 100% { opacity: 0; }
     }
 
+    /* Screen Fade Transition (Fondu sombre fluide entre zones) */
+    #screen-fade {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000000;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 999;
+      transition: opacity 0.38s ease-in-out;
+    }
+
+    #screen-fade.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     /* Modals & Fullscreen Overlays (Title, Pause, GameOver, Settings, Quit) - Authentic Retro */
     .menu-modal {
       position: absolute;
@@ -610,6 +629,9 @@
 </head>
 <body>
   <canvas id="renderCanvas"></canvas>
+
+  <!-- Screen Fade Transition (Fondu sombre) -->
+  <div id="screen-fade"></div>
 
   <div id="ui-overlay">
     <!-- Soothing Green Heal Screen Flash -->

@@ -1,4 +1,4 @@
-import { Scene } from '@babylonjs/core';
+import { Scene, Vector3 } from '@babylonjs/core';
 import { AudioManager } from './AudioManager.js';
 import { InputManager } from './InputManager.js';
 import { SaveManager } from './SaveManager.js';
@@ -6,6 +6,7 @@ import { CameraManager } from '../rendering/CameraManager.js';
 import { LightingManager } from '../rendering/LightingManager.js';
 import { EnvironmentManager } from '../world/EnvironmentManager.js';
 import { LevelManager } from '../world/LevelManager.js';
+import { CaveManager } from '../world/CaveManager.js';
 import { CollisionManager } from '../world/CollisionManager.js';
 import { Player } from '../entities/Player.js';
 import { UIManager } from '../ui/UIManager.js';
@@ -14,6 +15,7 @@ export const GameState = {
   TITLE: 'TITLE',
   PLAYING: 'PLAYING',
   DIALOGUE: 'DIALOGUE',
+  TRANSITION: 'TRANSITION',
   PAUSED: 'PAUSED',
   SETTINGS: 'SETTINGS',
   QUIT_CONFIRM: 'QUIT_CONFIRM',
@@ -24,8 +26,8 @@ export const GameState = {
 /**
  * GameManager.js — Cœur logique du jeu Luxea.
  * Conforme à AGENT.md & GDD.md :
- * - Scène unique continue Babylon.js.
- * - Machine à états (Titre -> Jeu -> Pause -> Dialogue -> Défaite/Respawn).
+ * - Scène unique continue Babylon.js avec activation/désactivation de zones (Plaine / Caverne).
+ * - Machine à états (Titre -> Jeu -> Pause -> Dialogue -> Transition -> Défaite/Respawn).
  * - Boucle de jeu découplée avec deltaTime plafonné.
  * - Intégration de la mécanique de lumière et du combat d'épée.
  */
@@ -36,6 +38,9 @@ export class GameManager {
     this.scene = new Scene(this.engine);
 
     this.state = GameState.TITLE;
+    this.currentZone = 'plaine';
+    this.isTransitioning = false;
+    this.transitionCooldown = 0;
 
     // Gestionnaires de sous-systèmes
     this.audio = new AudioManager();
@@ -47,10 +52,15 @@ export class GameManager {
     this.collision = new CollisionManager();
     this.environment = new EnvironmentManager(this.scene);
     this.level = new LevelManager(this.scene, this.audio, this.saveData);
+    this.cave = new CaveManager(this.scene);
 
-    // Initialisation des hitboxes (murs, falaises, arbres, buissons, panneau, portes)
+    // Initialisation des hitboxes (murs, falaises, arbres, buissons, panneau, portes, caverne)
     this.environment.initColliders(this.collision);
     this.level.initColliders(this.collision);
+    this.cave.initColliders(this.collision);
+
+    // La caverne est désactivée par défaut au lancement (scène unique)
+    this.cave.setEnabled(false);
 
     this.player = new Player(this.scene, this.audio, this.lightingManager, this.cameraManager, this.collision);
     this.ui = new UIManager(this.scene);
@@ -220,9 +230,22 @@ export class GameManager {
   }
 
   respawnPlayer() {
-    this.player.reset(0, 0, -4);
-    if (this.cameraManager) {
-      this.cameraManager.snapTo(this.player.getPosition(), -Math.PI / 2);
+    if (this.currentZone === 'cavern') {
+      // Réapparition à l'entrée de la Caverne (cadrage 3/4 vers l'intérieur)
+      this.player.reset(185.0, 0, 0);
+      this.player.facingAngle = Math.PI / 2;
+      this.player.targetFacingAngle = Math.PI / 2;
+      if (this.player.rollNode) this.player.rollNode.rotation.y = Math.PI / 2;
+      this.player.visualRoot.rotation.y = Math.PI / 2;
+      if (this.cameraManager) {
+        this.cameraManager.snapTo(new Vector3(185.0, 1.2, 0), -Math.PI * 0.78, 8.5);
+      }
+    } else {
+      // Réapparition au Spawn de la Plaine d'Éveil
+      this.player.reset(0, 0, -4);
+      if (this.cameraManager) {
+        this.cameraManager.snapTo(this.player.getPosition(), -Math.PI / 2);
+      }
     }
     this.ui.updateHealth(this.player.health);
     this.ui.updateLightGauge(this.player.lightGauge, false);
@@ -233,6 +256,84 @@ export class GameManager {
     this.ui.hideQuitGoodbye();
     this.ui.hideInteractionPrompt();
     this.ui.hideDialogue();
+    this.input.flush();
+    this.state = GameState.PLAYING;
+  }
+
+  /**
+   * Transition de zone ultra-fluide avec fondu sombre (Fade to Black).
+   * Zéro lag, zéro freeze : bascule des scènes et coordonnées sous écran noir complet.
+   */
+  async switchZone(targetZone) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+    this.state = GameState.TRANSITION;
+    this.input.flush();
+    this.ui.hideInteractionPrompt();
+    this.ui.hideDialogue();
+
+    // 1. Fondu progressif vers le noir complet
+    await this.ui.fadeToBlack(380);
+
+    // 2. Bascule instantanée des zones, colliders et lumières sous l'écran noir
+    if (targetZone === 'cavern') {
+      this.currentZone = 'cavern';
+      this.environment.root.setEnabled(false);
+      this.level.root.setEnabled(false);
+      this.cave.setEnabled(true);
+
+      this.collision.setZone('cavern');
+      this.lightingManager.setZone('cavern');
+
+      const caveBounds = this.cave.getBounds();
+      this.player.setBounds(caveBounds.player);
+      this.cameraManager.setBounds(caveBounds.camera);
+      this.player.setZone('cavern');
+      this.player.setGroundHeightProvider((x, z) => this.cave.getGroundHeight(x, z));
+
+      // Téléportation à l'entrée Ouest de la caverne, face vers l'intérieur (Est)
+      // Cadrage 3/4 immersif tourné vers la salle au lieu d'être collé au mur de dos
+      this.player.reset(185.0, 0, 0);
+      this.player.facingAngle = Math.PI / 2;
+      this.player.targetFacingAngle = Math.PI / 2;
+      if (this.player.rollNode) this.player.rollNode.rotation.y = Math.PI / 2;
+      this.player.visualRoot.rotation.y = Math.PI / 2;
+
+      this.cameraManager.snapTo(new Vector3(185.0, 1.2, 0), -Math.PI * 0.78, 8.5);
+    } else {
+      this.currentZone = 'plaine';
+      this.cave.setEnabled(false);
+      this.environment.root.setEnabled(true);
+      this.level.root.setEnabled(true);
+
+      this.collision.setZone('plaine');
+      this.lightingManager.setZone('plaine');
+
+      this.player.setBounds({ minX: -26, maxX: 26, minZ: -23, maxZ: 26 });
+      this.cameraManager.setBounds({ minX: -26, maxX: 26, minZ: -24, maxZ: 28 });
+      this.player.setZone('plaine');
+      this.player.setGroundHeightProvider(null);
+      this.player.root.position.y = 0;
+
+      // Téléportation devant l'arche sur la Plaine, face vers l'Ouest (en sortant)
+      // Cadrage ouvert sur le sentier et la plaine ensoleillée sans être dans la falaise
+      this.player.reset(21.2, 0, 2.0);
+      this.player.facingAngle = -Math.PI / 2;
+      this.player.targetFacingAngle = -Math.PI / 2;
+      if (this.player.rollNode) this.player.rollNode.rotation.y = -Math.PI / 2;
+      this.player.visualRoot.rotation.y = -Math.PI / 2;
+
+      this.cameraManager.snapTo(new Vector3(21.2, 1.2, 2.0), -Math.PI * 0.45, 9.5);
+    }
+
+    // Stabilisation technique de la première frame de rendu
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    // 3. Réapparition progressive (fade from black)
+    await this.ui.fadeFromBlack(380);
+
+    this.transitionCooldown = 1.2; // Délai de sécurité anti-rebond
+    this.isTransitioning = false;
     this.input.flush();
     this.state = GameState.PLAYING;
   }
@@ -261,6 +362,8 @@ export class GameManager {
         if (this.input.consumePause() || this.input.isKeyJustPressed('Enter')) {
           this.returnToTitle();
         }
+      } else if (this.state === GameState.TRANSITION) {
+        // En transition : figer le joueur mais continuer le rendu propre
       } else if (this.state === GameState.PLAYING) {
         this.updatePlaying(dt);
       } else if (this.state === GameState.DIALOGUE) {
@@ -289,6 +392,26 @@ export class GameManager {
   }
 
   updatePlaying(dt) {
+    // 0. Détection des déclencheurs de transition de zone (Caverne / Plaine)
+    if (this.transitionCooldown > 0) {
+      this.transitionCooldown -= dt;
+    } else if (!this.isTransitioning) {
+      const pPos = this.player.getPosition();
+      if (this.currentZone === 'plaine') {
+        // Seuil d'entrée de la Caverne à l'Est (X >= 24.5, Z entre 0.8 et 3.2)
+        if (pPos.x >= 24.5 && pPos.z >= 0.8 && pPos.z <= 3.2) {
+          this.switchZone('cavern');
+          return;
+        }
+      } else if (this.currentZone === 'cavern') {
+        // Seuil de sortie de la Caverne à l'Ouest (X <= 181.2, Z entre -2.4 et 2.4)
+        if (pPos.x <= 181.2 && pPos.z >= -2.4 && pPos.z <= 2.4) {
+          this.switchZone('plaine');
+          return;
+        }
+      }
+    }
+
     // A. Pause
     if (this.input.consumePause()) {
       this.pauseGame();
@@ -299,13 +422,24 @@ export class GameManager {
     if (this.input.consumeAttack()) {
       const swung = this.player.attack();
       if (swung) {
-        // Test de collision avec les buissons, ronces, mannequin et l'environnement
-        this.level.checkSwordHits(
-          this.player.getPosition(),
-          this.player.facingAngle,
-          this.player.weapon,
-          this.cameraManager
-        );
+        if (this.currentZone === 'plaine') {
+          // Test de collision avec les buissons, ronces, mannequin et l'environnement de la plaine
+          this.level.checkSwordHits(
+            this.player.getPosition(),
+            this.player.facingAngle,
+            this.player.weapon,
+            this.cameraManager
+          );
+        } else if (this.currentZone === 'cavern') {
+          // Test de frappe d'épée contre les torches de la caverne
+          this.cave.checkSwordHits(
+            this.player.getPosition(),
+            this.player.facingAngle,
+            this.player.weapon,
+            this.cameraManager,
+            this.audio
+          );
+        }
       }
     }
 
@@ -323,8 +457,12 @@ export class GameManager {
       return;
     }
 
-    // F. Mise à jour des objets du niveau (pickups de cœurs, portes)
-    this.level.update(dt, this.player);
+    // F. Mise à jour des objets du niveau selon la zone
+    if (this.currentZone === 'plaine') {
+      this.level.update(dt, this.player);
+    } else if (this.currentZone === 'cavern') {
+      this.cave.update(dt, this.player, this.cameraManager, this.audio);
+    }
 
     // G. Mise à jour de la caméra intelligente semi-contrainte
     if (this.input.consumeRecenter()) {
@@ -339,8 +477,11 @@ export class GameManager {
       dt
     );
 
-    // H. Détection des interactions environnementales (Portes, Panneau, Caverne)
-    const nearest = this.level.getNearestInteractable(this.player.getPosition(), this.player.facingAngle);
+    // H. Détection des interactions environnementales (Portes, Panneau, Stèle)
+    const nearest = this.currentZone === 'plaine'
+      ? this.level.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
+      : null;
+
     if (nearest) {
       this.ui.updateInteractionPrompt(nearest.position, nearest.promptText);
 

@@ -160,12 +160,13 @@ export class CameraManager {
   }
 
   // Recentre instantanément la caméra sur une position (sans lerp)
-  snapTo(targetPos, alpha = null) {
+  snapTo(targetPos, alpha = null, radius = null) {
     if (!targetPos || !this.camera) return;
     const clampedX = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, targetPos.x));
     const clampedZ = Math.max(this.bounds.minZ, Math.min(this.bounds.maxZ, targetPos.z));
+    const targetY = (targetPos.y || 0) + 1.2;
 
-    this.targetPosition.set(clampedX, 1.2, clampedZ);
+    this.targetPosition.set(clampedX, targetY, clampedZ);
     this.smoothedTarget.copyFrom(this.targetPosition);
     this.leadOffset.set(0, 0, 0);
 
@@ -179,15 +180,25 @@ export class CameraManager {
     this.targetBeta = this.defaultBeta;
     this.camera.beta = this.defaultBeta;
 
-    this.currentRadius = this.defaultRadius;
-    this.targetRadius = this.defaultRadius;
-    this.camera.radius = this.defaultRadius;
+    const r = radius !== null ? radius : this.defaultRadius;
+    this.currentRadius = r;
+    this.targetRadius = r;
+    this.camera.radius = r;
 
     this.camera.setTarget(this.smoothedTarget);
     this.shakeTimer = 0;
     this.manualOverrideTimer = 0;
     this.isSnappingRecenter = false;
     this.restoreAllOcclusions();
+  }
+
+  /**
+   * Définit les limites (bounds) de déplacement de la caméra pour la zone active.
+   */
+  setBounds(bounds) {
+    if (bounds) {
+      this.bounds = { ...bounds };
+    }
   }
 
   /**
@@ -210,11 +221,11 @@ export class CameraManager {
       if (!mesh || !mesh.name) return false;
       const name = mesh.name;
       // Ne pas masquer Zelya, son arme, le sol ou les sentiers
-      if (name.startsWith('zelya') || name.startsWith('weapon') || name.startsWith('main_ground') || name.startsWith('path_')) {
+      if (name.startsWith('zelya') || name.startsWith('weapon') || name.startsWith('main_ground') || name.startsWith('path_') || name.startsWith('cave_ground') || name.startsWith('cave_ceiling')) {
         return false;
       }
-      // Filtrer les feuillages, troncs d'arbres et bords de falaises
-      return name.startsWith('tree_') || name.startsWith('cliff_') || name.startsWith('arch_');
+      // Filtrer les feuillages, troncs d'arbres, bords de falaises et piliers
+      return name.startsWith('tree_') || name.startsWith('cliff_') || name.startsWith('arch_') || name.startsWith('cave_wall') || name.startsWith('cave_pillar');
     });
 
     const hitMesh = (hit && hit.hit && hit.pickedMesh) ? hit.pickedMesh : null;
@@ -271,10 +282,17 @@ export class CameraManager {
       this.manualOverrideTimer = Math.max(0, this.manualOverrideTimer - dt);
     }
 
-    // 2. Gestion de l'orientation de la caméra (Stabilité Zelda / Rétro 3D)
-    // L'angle horizontal ne tourne PAS brusquement de lui-même quand le joueur recule ou change de direction.
-    // L'orientation est contrôlée librement à la souris (Clic Droit / Molette) ou recentrée via [R].
-    // Cela supprime définitivement les retournements à 180° inattendus et les inversions de touches.
+    // 2. Auto-orientation dynamique dans le dos lors de la course (Style Zelda 3D)
+    // Dès que le joueur se déplace sans action manuelle sur la souris, la caméra suit doucement
+    if (isMoving && this.manualOverrideTimer <= 0 && !this.isSnappingRecenter) {
+      // Dans notre système d'angles : l'angle caméra situé dans le dos du personnage :
+      const desiredAlpha = -playerFacingAngle - Math.PI / 2;
+      const diff = CameraManager.angleDiff(desiredAlpha, this.targetAlpha);
+      // Suivi progressif et naturel (vitesse modérée pour préserver le confort de jeu)
+      if (Math.abs(diff) < Math.PI * 0.88) {
+        this.targetAlpha += diff * Math.min(1.0, dt * 2.4);
+      }
+    }
 
     // 3. Interpolation lissée des angles et de la distance
     const alphaLerpSpeed = this.isSnappingRecenter ? 14.0 : 10.0;
@@ -307,8 +325,9 @@ export class CameraManager {
     // 4. Centrage stable et doux sur le joueur (sans à-coups directionnels)
     const clampedX = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, playerPos.x));
     const clampedZ = Math.max(this.bounds.minZ, Math.min(this.bounds.maxZ, playerPos.z));
+    const targetY = (playerPos.y || 0) + 1.2;
 
-    this.targetPosition.set(clampedX, 1.2, clampedZ);
+    this.targetPosition.set(clampedX, targetY, clampedZ);
 
     // Suivi lissé (Lerp) de la position cible
     const lerpFactor = Math.min(1.0, dt * 7.5);
@@ -346,7 +365,45 @@ export class CameraManager {
       this.camera.setTarget(this.smoothedTarget);
     }
 
-    // 7. Mise à jour de l'occlusion des obstacles
+    // 7. Mise à jour de l'occlusion des obstacles & collision anti-pénétration de mur
+    this.updateCameraCollision(this.smoothedTarget);
     this.updateOcclusion();
+  }
+
+  /**
+   * Sonde de collision physique de la caméra (Camera Boom / Spring Arm) :
+   * Détecte si un mur, une falaise ou une arche solide s'interpose entre le joueur et la caméra.
+   * Rapproche instantanément la caméra à l'intérieur de la pièce pour éviter toute vue encastrée dans le mur.
+   */
+  updateCameraCollision(targetPos) {
+    if (!this.camera || !this.scene) return;
+
+    const camPos = this.camera.position;
+    const origin = new Vector3(targetPos.x, targetPos.y + 0.35, targetPos.z);
+    const dir = camPos.subtract(origin);
+    const totalDist = dir.length();
+    if (totalDist < 0.8) return;
+    dir.normalize();
+
+    // Raycast du joueur vers la position théorique de la caméra
+    const ray = new Ray(origin, dir, totalDist);
+    const hit = this.scene.pickWithRay(ray, (mesh) => {
+      if (!mesh || !mesh.name || !mesh.isEnabled()) return false;
+      const n = mesh.name;
+      // Ne pas tester le joueur, les armes, le sol ou les plafonds transparents
+      if (n.startsWith('zelya') || n.startsWith('weapon') || n.startsWith('cave_ground') || n.startsWith('main_ground') || n.startsWith('path_') || n.startsWith('cave_ceiling')) {
+        return false;
+      }
+      return n.startsWith('cliff_') || n.startsWith('cave_wall') || n.startsWith('wall_') || n.startsWith('arch_') || n.startsWith('terrace_');
+    });
+
+    if (hit && hit.hit && hit.distance < totalDist) {
+      // Obstacle solide détecté : contraindre la distance de caméra devant le mur
+      const safeRadius = Math.max(3.2, hit.distance - 0.40);
+      if (safeRadius < this.camera.radius) {
+        this.camera.radius = safeRadius;
+        this.currentRadius = safeRadius;
+      }
+    }
   }
 }
