@@ -78,6 +78,13 @@ export class Player {
     this.dodgeCooldown = 0;
     this.dodgeDirection = new Vector3(0, 0, 1);
 
+    // Recul physique lors des dégâts (Knockback dynamique)
+    this.isKnockedBack = false;
+    this.knockbackTimer = 0;
+    this.knockbackDuration = 0.28; // Durée du recul (glissement franc et amorti)
+    this.knockbackDirection = new Vector3(0, 0, 0);
+    this.knockbackSpeed = 13.5;
+
     // Combat — 0.5s de cooldown entre les coups d'épée
     this.attackCooldown = 0;
 
@@ -388,24 +395,20 @@ export class Player {
     if (this.invulnerableTimer > 0 || this.isDodgeRolling) return false;
 
     this.health = Math.max(0, this.health - amount);
-    this.invulnerableTimer = 0.8; // 0.8s d'invulnérabilité
+    this.invulnerableTimer = 0.85; // 0.85s d'invulnérabilité
     this.audio.playHurt();
-    this.camera.shake(0.35, 0.22);
 
-    // Knockback
-    if (knockbackDir) {
-      const kbDelta = {
-        x: knockbackDir.x * 0.8,
-        z: knockbackDir.z * 0.8
-      };
-      if (this.collision) {
-        const resolved = this.collision.resolveMove(this.root.position, kbDelta, this.radius);
-        this.root.position.x = resolved.x;
-        this.root.position.z = resolved.z;
-      } else {
-        this.root.position.x += kbDelta.x;
-        this.root.position.z += kbDelta.z;
-      }
+    // Secousse d'écran fluide et contenue (vibration brève sans saut brutal)
+    if (this.camera) {
+      this.camera.shake(0.14, 0.20);
+    }
+
+    // Déclenchement du recul physique progressif sur plusieurs frames (glissement fluide)
+    if (knockbackDir && (knockbackDir.x !== 0 || knockbackDir.z !== 0)) {
+      const len = Math.hypot(knockbackDir.x, knockbackDir.z) || 1.0;
+      this.knockbackDirection.set(knockbackDir.x / len, 0, knockbackDir.z / len);
+      this.isKnockedBack = true;
+      this.knockbackTimer = this.knockbackDuration;
     }
 
     return true;
@@ -480,6 +483,8 @@ export class Player {
     this.health = this.maxHealth;
     this.lightGauge = 1.0;
     this.isDodgeRolling = false;
+    this.isKnockedBack = false;
+    this.knockbackTimer = 0;
     this.isMoving = false;
     this.invulnerableTimer = 0;
     this.setPosition(x, y, z);
@@ -546,8 +551,53 @@ export class Player {
       this.lightGauge = Math.max(0.05, this.lightGauge - this.torchDrainRate * dt);
     }
 
-    // 3. Déplacement & Roulade au sol en boule
-    if (this.isDodgeRolling) {
+    // 3. Déplacement, Recul de dégâts & Roulade au sol
+    if (this.isKnockedBack) {
+      this.isMoving = false;
+      this.knockbackTimer -= dt;
+      const progress = Math.max(0, this.knockbackTimer / this.knockbackDuration); // 1.0 -> 0.0
+
+      // Décroissance douce et progressive de la vitesse (recul franc puis amorti)
+      const speed = this.knockbackSpeed * Math.pow(progress, 1.35);
+
+      const moveDelta = {
+        x: this.knockbackDirection.x * speed * dt,
+        z: this.knockbackDirection.z * speed * dt
+      };
+
+      if (this.collision) {
+        const resolved = this.collision.resolveMove(this.root.position, moveDelta, this.radius);
+        this.root.position.x = resolved.x;
+        this.root.position.z = resolved.z;
+      } else {
+        this.root.position.x += moveDelta.x;
+        this.root.position.z += moveDelta.z;
+      }
+
+      // Posture de réaction au coup (léger recul du torse et bras écartés pour l'équilibre)
+      if (this.bodyMesh) {
+        this.bodyMesh.rotation.x = -0.22 * progress;
+      }
+      if (this.armLRoot) {
+        this.armLRoot.rotation.x = 0.40 * progress;
+        this.armLRoot.rotation.z = -0.30 * progress;
+      }
+      if (this.armRRoot && !this.weapon.isSlashing) {
+        this.armRRoot.rotation.x = 0.40 * progress;
+        this.armRRoot.rotation.z = 0.30 * progress;
+      }
+
+      if (this.knockbackTimer <= 0) {
+        this.isKnockedBack = false;
+        if (this.bodyMesh) this.bodyMesh.rotation.x = 0;
+        if (this.armLRoot) { this.armLRoot.rotation.x = 0; this.armLRoot.rotation.z = 0; }
+        if (this.armRRoot && !this.weapon.isSlashing) {
+          this.armRRoot.rotation.x = -0.30;
+          this.armRRoot.rotation.y = 0.10;
+          this.armRRoot.rotation.z = 0.12;
+        }
+      }
+    } else if (this.isDodgeRolling) {
       this.dodgeTimer -= dt;
       const progress = Math.min(1.0, Math.max(0.0, 1.0 - (this.dodgeTimer / this.dodgeDuration)));
 

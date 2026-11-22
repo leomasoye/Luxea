@@ -6,6 +6,8 @@ import {
   TransformNode
 } from '@babylonjs/core';
 import { Bush } from '../entities/Bush.js';
+import { ThornBush } from '../entities/ThornBush.js';
+import { TrainingDummy } from '../entities/TrainingDummy.js';
 
 /**
  * LevelManager.js — Hub de la Plaine d'Éveil et les 3 Passages.
@@ -14,7 +16,10 @@ import { Bush } from '../entities/Bush.js';
  * - Chemin 2 (Ouest) : Grille de bronze verrouillée (Nécessite Clé simple).
  * - Chemin 3 (Nord) : Porte imposante du Boss (Bruits étouffés de Lyo, aura d'ombre).
  * - Panneau interactif au Spawn (Tutoriel commandes).
- * - Buissons tranchables et pickups de cœurs.
+ * - Buissons tranchables variés et pickups de cœurs.
+ * - Buissons épineux hostiles (1/2 cœur de dégâts au contact).
+ * - Mannequin d'entraînement en bois avec ressort dynamique (wobble).
+ * - Particules d'aura de ténèbres au Nord et poussières dorées dans la plaine.
  */
 export class LevelManager {
   constructor(scene, audioManager, saveState) {
@@ -26,20 +31,32 @@ export class LevelManager {
 
     // Collections
     this.bushes = [];
+    this.thornBushes = [];
     this.pickups = [];
+
+    // Mannequin d'entraînement
+    this.trainingDummy = null;
+
+    // Particules
+    this.darknessParticles = [];
+    this.ambientParticles = [];
+    this.ambientTime = 0;
 
     // Points d'intérêt et déclencheurs interactifs
     this.interactables = [];
 
     // Éléments spécifiques
     this.bossDoorKnockTimer = 2.5; // Déclenche les bruits de Lyo périodiquement
-    this.bossDoorParticles = [];
 
     this.initPassageEast();
     this.initPassageWest();
     this.initPassageNorth();
     this.initSpawnSign();
     this.initBushes();
+    this.initThornBushes();
+    this.initTrainingDummy();
+    this.initBossDoorDarknessAura();
+    this.initAmbientParticles();
   }
 
   // --- 1. Chemin 1 (Est) : La Caverne du Gardien (Ouvert) ---
@@ -247,34 +264,134 @@ export class LevelManager {
     });
   }
 
-  // --- 5. Buissons tranchables dispersés ---
+  // --- 5. Buissons tranchables diversifiés (tailles, formes, couleurs et lobes variés) ---
   initBushes() {
-    const positions = [
-      new Vector3(-3, 0, -2),
-      new Vector3(-4.5, 0, -3.5),
-      new Vector3(4, 0, -1),
-      new Vector3(5.5, 0, -2.5),
-      new Vector3(-7, 0, 4),
-      new Vector3(-8.5, 0, 5.5),
-      new Vector3(7, 0, 4.5),
-      new Vector3(8.5, 0, 6),
-      new Vector3(-2, 0, 8),
-      new Vector3(2, 0, 9),
-      new Vector3(-4, 0, 14),
-      new Vector3(4, 0, 15)
+    const bushConfigs = [
+      { pos: new Vector3(-3, 0, -2), scale: 1.0, scaleY: 1.0, colorVariant: 0, multiLobe: true },
+      { pos: new Vector3(-5.2, 0, -2.8), scale: 0.8, scaleY: 0.9, colorVariant: 1, multiLobe: false },
+      { pos: new Vector3(4, 0, -1), scale: 1.15, scaleY: 0.9, scaleX: 1.2, colorVariant: 2, multiLobe: true },
+      { pos: new Vector3(5.8, 0, -2.5), scale: 0.75, scaleY: 1.1, colorVariant: 0, multiLobe: false },
+      { pos: new Vector3(-7, 0, 4), scale: 1.25, scaleY: 1.0, scaleZ: 1.2, colorVariant: 1, multiLobe: true },
+      { pos: new Vector3(-8.8, 0, 5.2), scale: 0.85, scaleY: 0.85, colorVariant: 3, multiLobe: false },
+      { pos: new Vector3(7, 0, 4.5), scale: 1.1, scaleY: 1.15, colorVariant: 0, multiLobe: true },
+      { pos: new Vector3(8.8, 0, 6), scale: 0.8, scaleY: 0.8, colorVariant: 2, multiLobe: false },
+      { pos: new Vector3(-2, 0, 8), scale: 0.9, scaleY: 1.1, colorVariant: 1, multiLobe: false },
+      { pos: new Vector3(2, 0, 9), scale: 1.2, scaleY: 0.95, scaleX: 1.15, colorVariant: 3, multiLobe: true },
+      { pos: new Vector3(-4, 0, 14), scale: 1.1, scaleY: 1.05, colorVariant: 0, multiLobe: true },
+      { pos: new Vector3(4, 0, 15), scale: 0.85, scaleY: 1.2, colorVariant: 1, multiLobe: false }
     ];
 
-    positions.forEach(pos => {
-      const bush = new Bush(this.scene, pos, this.audio);
+    bushConfigs.forEach(cfg => {
+      const bush = new Bush(this.scene, cfg.pos, this.audio, cfg);
       this.bushes.push(bush);
     });
   }
 
-  // Vérifie les coups d'épée contre tous les buissons
-  checkSwordHits(playerPos, playerFacingAngle, weapon) {
+  // --- 6. Buissons épineux hostiles (1/2 cœur de dégâts au contact) ---
+  initThornBushes() {
+    const thornPositions = [
+      new Vector3(-8.0, 0, 8.5), // À l'Ouest, sur un tertre rocheux dégagé
+      new Vector3(6.8, 0, -4.0)  // Au Sud-Est, dans une zone d'herbe ouverte et aérée
+    ];
+
+    thornPositions.forEach(pos => {
+      const tb = new ThornBush(this.scene, pos, this.audio);
+      this.thornBushes.push(tb);
+    });
+  }
+
+  // --- 7. Mannequin d'entraînement en bois (Wobble naturel au coup) ---
+  initTrainingDummy() {
+    // Placé plus loin du spawn, dans une clairière d'entraînement dédiée au Sud-Ouest
+    this.trainingDummy = new TrainingDummy(this.scene, new Vector3(-10.5, 0, -8.5), this.audio);
+  }
+
+  // --- 8. Aura de ténèbres au Nord (Particules sombres/violettes autour de la Porte de Gallen) ---
+  initBossDoorDarknessAura() {
+    const darkMat = new StandardMaterial('mat_boss_aura_particle', this.scene);
+    darkMat.diffuseColor = new Color3(0.10, 0.02, 0.14);
+    darkMat.emissiveColor = new Color3(0.60, 0.08, 0.75); // Lueur violette/pourpre palpitante
+    darkMat.specularColor = new Color3(0.6, 0.2, 0.7);
+    darkMat.alpha = 0.85;
+    darkMat.freeze();
+
+    const count = 30;
+    for (let i = 0; i < count; i++) {
+      const p = MeshBuilder.CreateBox(`boss_dark_p_${i}`, {
+        width: 0.18 + (i % 3) * 0.04,
+        height: 0.18 + (i % 3) * 0.04,
+        depth: 0.18 + (i % 3) * 0.04
+      }, this.scene);
+      p.material = darkMat;
+
+      // Répartis autour du portail du Boss
+      const u = i / count;
+      const angle = u * Math.PI * 2;
+      const baseX = Math.sin(angle) * 2.8 + (Math.random() - 0.5) * 0.8;
+      const baseY = 0.8 + Math.random() * 5.2;
+      const baseZ = 23.8 + (Math.random() - 0.5) * 0.9;
+
+      p.position.set(baseX, baseY, baseZ);
+      p.parent = this.root;
+
+      this.darknessParticles.push({
+        mesh: p,
+        baseX,
+        baseY,
+        baseZ,
+        speedY: 0.40 + Math.random() * 0.50,
+        orbitSpeed: (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.8),
+        orbitRadius: 0.25 + Math.random() * 0.45,
+        phase: Math.random() * Math.PI * 2,
+        rotSpeed: 1.5 + Math.random() * 2.5
+      });
+    }
+  }
+
+  // --- 9. Particules d'ambiance (Lucioles / Poussières dorées dans la plaine) ---
+  initAmbientParticles() {
+    const fireflyMat = new StandardMaterial('mat_firefly_particle', this.scene);
+    fireflyMat.diffuseColor = new Color3(1.0, 0.95, 0.65);
+    fireflyMat.emissiveColor = new Color3(0.95, 0.82, 0.25); // Poussière dorée / luciole chaleureuse
+    fireflyMat.specularColor = new Color3(1, 1, 1);
+    fireflyMat.alpha = 0.88;
+    fireflyMat.freeze();
+
+    const count = 38;
+    for (let i = 0; i < count; i++) {
+      const p = MeshBuilder.CreateBox(`ambient_firefly_${i}`, {
+        width: 0.13,
+        height: 0.13,
+        depth: 0.13
+      }, this.scene);
+      p.material = fireflyMat;
+
+      // Répartis dans toute la plaine d'éveil
+      const x = (Math.random() - 0.5) * 42;
+      const y = 0.6 + Math.random() * 2.8;
+      const z = (Math.random() - 0.5) * 38;
+
+      p.position.set(x, y, z);
+      p.parent = this.root;
+
+      this.ambientParticles.push({
+        mesh: p,
+        seed: Math.random() * 100,
+        driftSpeedX: (Math.random() - 0.5) * 0.35,
+        driftSpeedZ: (Math.random() - 0.5) * 0.35,
+        bobSpeed: 0.8 + Math.random() * 1.2,
+        bobAmp: 0.18 + Math.random() * 0.16,
+        baseY: y
+      });
+    }
+  }
+
+  // Vérifie les coups d'épée contre les buissons, les ronces et le mannequin d'entraînement
+  checkSwordHits(playerPos, playerFacingAngle, weapon, cameraManager = null) {
+    // 1. Buissons tranchables
     this.bushes.forEach(bush => {
       if (!bush.isCut) {
-        const hit = weapon.checkHit(playerPos, playerFacingAngle, bush.getPosition(), 0.75);
+        const hit = weapon.checkHit(playerPos, playerFacingAngle, bush.getPosition(), bush.radius);
         if (hit) {
           bush.cut(heartPickup => {
             this.pickups.push(heartPickup);
@@ -282,6 +399,21 @@ export class LevelManager {
         }
       }
     });
+
+    // 2. Buissons épineux
+    this.thornBushes.forEach(thornBush => {
+      if (!thornBush.isCut) {
+        const hit = weapon.checkHit(playerPos, playerFacingAngle, thornBush.getPosition(), thornBush.radius);
+        if (hit) {
+          thornBush.cut();
+        }
+      }
+    });
+
+    // 3. Mannequin d'entraînement en bois (wobble + sciure + shake)
+    if (this.trainingDummy) {
+      this.trainingDummy.checkSwordHit(playerPos, playerFacingAngle, weapon, cameraManager);
+    }
   }
 
   // Trouve l'élément interactif le plus proche du joueur (avec validation de distance et d'orientation)
@@ -337,10 +469,62 @@ export class LevelManager {
         this.audio.playDoorKnock();
       }
     }
+
+    // 3. Mannequin d'entraînement (physique de ressort)
+    if (this.trainingDummy) {
+      this.trainingDummy.update(dt);
+    }
+
+    // 4. Buissons épineux (dégâts au contact si non tranchés)
+    this.thornBushes.forEach(tb => {
+      tb.checkPlayerContact(player, dt);
+    });
+
+    // 5. Particules d'aura de ténèbres au Nord (autour de la Porte de Gallen)
+    this.darknessParticles.forEach(p => {
+      p.baseY += p.speedY * dt;
+      if (p.baseY > 6.2) {
+        p.baseY = 0.8;
+      }
+      p.phase += p.orbitSpeed * dt;
+      const offsetX = Math.cos(p.phase) * p.orbitRadius;
+      const offsetZ = Math.sin(p.phase) * (p.orbitRadius * 0.6);
+
+      p.mesh.position.x = p.baseX + offsetX;
+      p.mesh.position.y = p.baseY;
+      p.mesh.position.z = p.baseZ + offsetZ;
+
+      p.mesh.rotation.y += p.rotSpeed * dt;
+      p.mesh.rotation.x += p.rotSpeed * 0.7 * dt;
+
+      // Pulsation rétro d'échelle
+      const s = 0.85 + 0.35 * Math.sin(p.phase * 2);
+      p.mesh.scaling.set(s, s, s);
+    });
+
+    // 6. Particules d'ambiance (Lucioles / Poussières dorées dans la plaine)
+    this.ambientTime += dt;
+    this.ambientParticles.forEach(p => {
+      p.mesh.position.x += p.driftSpeedX * dt;
+      p.mesh.position.z += p.driftSpeedZ * dt;
+
+      // Respiration verticale douce
+      p.mesh.position.y = p.baseY + Math.sin(this.ambientTime * p.bobSpeed + p.seed) * p.bobAmp;
+
+      // Recyclage des bornes de la plaine
+      if (p.mesh.position.x > 22) p.mesh.position.x = -22;
+      if (p.mesh.position.x < -22) p.mesh.position.x = 22;
+      if (p.mesh.position.z > 22) p.mesh.position.z = -20;
+      if (p.mesh.position.z < -20) p.mesh.position.z = 22;
+
+      p.mesh.rotation.y += dt * 1.5;
+      const twinkle = 0.8 + 0.3 * Math.sin(this.ambientTime * 3.5 + p.seed);
+      p.mesh.scaling.set(twinkle, twinkle, twinkle);
+    });
   }
 
   /**
-   * Enregistre les hitboxes du panneau, des portes/grilles et des buissons dans le CollisionManager.
+   * Enregistre les hitboxes du panneau, des portes/grilles, du mannequin et des buissons dans le CollisionManager.
    */
   initColliders(collisionManager) {
     if (!collisionManager) return;
@@ -364,17 +548,53 @@ export class LevelManager {
     collisionManager.addBox(22.8, 25.2, 2.9, 4.6, 'east_pillar_r');
     collisionManager.addBox(24.2, 26.8, 0.6, 3.4, 'east_cave_darkness');
 
-    // 3. Buissons tranchables : actifs uniquement tant qu'ils ne sont pas coupés
+    // 3. Mannequin d'entraînement (solide)
+    if (this.trainingDummy) {
+      collisionManager.addCircle(
+        this.trainingDummy.root.position.x,
+        this.trainingDummy.root.position.z,
+        0.52,
+        'training_dummy'
+      );
+    }
+
+    // 4. Buissons tranchables & ronces : actifs uniquement tant qu'ils ne sont pas coupés
     collisionManager.addDynamicSource(() => {
-      return this.bushes
-        .filter(b => !b.isCut)
-        .map(b => ({
-          type: 'circle',
-          x: b.root.position.x,
-          z: b.root.position.z,
-          radius: 0.7,
-          tag: 'bush'
-        }));
+      const colliders = [];
+      this.bushes.forEach(b => {
+        if (!b.isCut) {
+          colliders.push({
+            type: 'circle',
+            x: b.root.position.x,
+            z: b.root.position.z,
+            radius: b.radius * 0.9,
+            tag: 'bush'
+          });
+        }
+      });
+      this.thornBushes.forEach(tb => {
+        if (!tb.isCut) {
+          colliders.push({
+            type: 'circle',
+            x: tb.root.position.x,
+            z: tb.root.position.z,
+            radius: tb.radius * 0.85,
+            tag: 'thorn_bush'
+          });
+        }
+      });
+      return colliders;
     });
   }
+
+  /**
+   * Réinitialise les buissons, ronces et pickups (appelé lors d'un respawn ou reset).
+   */
+  reset() {
+    this.bushes.forEach(b => b.reset());
+    this.thornBushes.forEach(tb => tb.reset());
+    this.pickups.forEach(p => p.dispose());
+    this.pickups = [];
+  }
 }
+

@@ -152,9 +152,9 @@ export class CameraManager {
     this.isSnappingRecenter = true;
   }
 
-  // Déclenche une secousse de caméra lors d'un coup réussi ou d'un dégât
-  shake(intensity = 0.25, duration = 0.18) {
-    this.shakeIntensity = intensity;
+  // Déclenche une secousse de caméra fluide lors d'un coup réussi ou d'un dégât
+  shake(intensity = 0.14, duration = 0.18) {
+    this.shakeIntensity = Math.min(intensity, 0.22); // Plafond de sécurité pour éviter tout décrochage
     this.shakeDuration = duration;
     this.shakeTimer = duration;
   }
@@ -271,21 +271,10 @@ export class CameraManager {
       this.manualOverrideTimer = Math.max(0, this.manualOverrideTimer - dt);
     }
 
-    // 2. Auto-alignement automatique dans le dos du personnage par défaut (style Zelda)
-    // S'exécute dès que Zelya se déplace et que le joueur ne manipule pas la caméra
-    if (isMoving && this.manualOverrideTimer <= 0 && playerFacingAngle !== null) {
-      const desiredAlpha = -playerFacingAngle - Math.PI / 2;
-
-      // Cap où regarde actuellement la caméra
-      const camHeading = Math.atan2(-Math.cos(this.currentAlpha), -Math.sin(this.currentAlpha));
-      const headingDiff = Math.abs(CameraManager.angleDiff(playerFacingAngle, camHeading));
-
-      // Si le joueur avance ou tourne : alignement dynamique très réactif
-      // Si le joueur recule directement vers l'écran : suivi plus posé
-      const followSpeed = (headingDiff < Math.PI * 0.75) ? 4.2 : 2.0;
-      const autoDiff = CameraManager.angleDiff(desiredAlpha, this.targetAlpha);
-      this.targetAlpha += autoDiff * Math.min(1.0, dt * followSpeed);
-    }
+    // 2. Gestion de l'orientation de la caméra (Stabilité Zelda / Rétro 3D)
+    // L'angle horizontal ne tourne PAS brusquement de lui-même quand le joueur recule ou change de direction.
+    // L'orientation est contrôlée librement à la souris (Clic Droit / Molette) ou recentrée via [R].
+    // Cela supprime définitivement les retournements à 180° inattendus et les inversions de touches.
 
     // 3. Interpolation lissée des angles et de la distance
     const alphaLerpSpeed = this.isSnappingRecenter ? 14.0 : 10.0;
@@ -315,20 +304,9 @@ export class CameraManager {
       this.targetAlpha += Math.PI * 2;
     }
 
-    // 4. Anticipation dynamique (Lead Camera) selon le regard de Zelya
-    if (isMoving && playerFacingAngle !== null) {
-      const targetLeadX = Math.sin(playerFacingAngle) * 1.4;
-      const targetLeadZ = Math.cos(playerFacingAngle) * 1.4;
-      Vector3.LerpToRef(this.leadOffset, new Vector3(targetLeadX, 0, targetLeadZ), Math.min(1.0, dt * 3.5), this.leadOffset);
-    } else {
-      Vector3.LerpToRef(this.leadOffset, Vector3.Zero(), Math.min(1.0, dt * 4.0), this.leadOffset);
-    }
-
-    // 5. Bornage de la position cible dans les limites de la plaine
-    const targetX = playerPos.x + this.leadOffset.x;
-    const targetZ = playerPos.z + this.leadOffset.z;
-    const clampedX = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, targetX));
-    const clampedZ = Math.max(this.bounds.minZ, Math.min(this.bounds.maxZ, targetZ));
+    // 4. Centrage stable et doux sur le joueur (sans à-coups directionnels)
+    const clampedX = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, playerPos.x));
+    const clampedZ = Math.max(this.bounds.minZ, Math.min(this.bounds.maxZ, playerPos.z));
 
     this.targetPosition.set(clampedX, 1.2, clampedZ);
 
@@ -336,20 +314,32 @@ export class CameraManager {
     const lerpFactor = Math.min(1.0, dt * 7.5);
     Vector3.LerpToRef(this.smoothedTarget, this.targetPosition, lerpFactor, this.smoothedTarget);
 
-    // 6. Gestion du screen shake
+    // 6. Gestion du screen shake (vibration harmonique orientée, sans téléportation aléatoire)
     if (this.shakeTimer > 0) {
       this.shakeTimer -= dt;
-      const progress = this.shakeTimer / this.shakeDuration;
-      const currentIntensity = this.shakeIntensity * progress;
+      const progress = Math.max(0, this.shakeTimer / this.shakeDuration);
 
-      const shakeOffsetX = (Math.random() - 0.5) * 2 * currentIntensity;
-      const shakeOffsetY = (Math.random() - 0.5) * 2 * currentIntensity;
+      // Fréquence rapide produisant un tremblement mécanique net et continu
+      const elapsed = this.shakeDuration - this.shakeTimer;
+      const freq = 44.0;
+      const waveLateral = Math.sin(elapsed * freq);
+      const waveVertical = Math.cos(elapsed * freq * 0.75);
+      const amp = this.shakeIntensity * Math.pow(progress, 1.25);
+
+      // Décalage dans le plan de vue de la caméra (perpendiculaire à l'axe optique)
+      const alpha = this.camera.alpha;
+      const rx = -Math.sin(alpha);
+      const rz = Math.cos(alpha);
+
+      const shakeOffsetX = rx * (waveLateral * amp);
+      const shakeOffsetZ = rz * (waveLateral * amp);
+      const shakeOffsetY = waveVertical * (amp * 0.35);
 
       this.camera.setTarget(
         new Vector3(
           this.smoothedTarget.x + shakeOffsetX,
           this.smoothedTarget.y + shakeOffsetY,
-          this.smoothedTarget.z
+          this.smoothedTarget.z + shakeOffsetZ
         )
       );
     } else {

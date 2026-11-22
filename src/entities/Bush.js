@@ -14,36 +14,85 @@ import {
  * - Butin : probabilité de faire apparaître un cœur régénérateur.
  */
 export class Bush {
-  constructor(scene, position, audioManager) {
+  constructor(scene, position, audioManager, options = {}) {
     this.scene = scene;
     this.audio = audioManager;
+    this.position = position.clone();
     this.isCut = false;
 
-    this.root = new TransformNode('BushNode', this.scene);
-    this.root.position.copyFrom(position);
+    // Options de variation (taille, forme, couleur, multi-lobes)
+    this.scale = options.scale !== undefined ? options.scale : 1.0;
+    this.scaleX = options.scaleX !== undefined ? options.scaleX : 1.0;
+    this.scaleY = options.scaleY !== undefined ? options.scaleY : 1.0;
+    this.scaleZ = options.scaleZ !== undefined ? options.scaleZ : 1.0;
+    this.colorVariant = options.colorVariant || 0;
+    this.multiLobe = !!options.multiLobe;
 
-    this.mesh = null;
+    this.radius = 0.75 * this.scale * Math.max(this.scaleX, this.scaleZ);
+
+    this.root = new TransformNode('BushNode', this.scene);
+    this.root.position.copyFrom(this.position);
+
+    this.meshes = [];
     this.heartPickup = null;
 
     this.initMesh();
   }
 
   initMesh() {
-    // Matériau vert feuille rétro
-    const bushMat = new StandardMaterial('mat_bush', this.scene);
-    bushMat.diffuseColor = new Color3(0.18, 0.68, 0.24);
-    bushMat.specularColor = new Color3(0.05, 0.1, 0.05);
+    // Variations de nuances de vert rétro
+    const greenVariants = [
+      new Color3(0.18, 0.68, 0.24), // Vert émeraude standard
+      new Color3(0.24, 0.74, 0.28), // Vert prairie frais
+      new Color3(0.14, 0.58, 0.20), // Vert mousse forêt dense
+      new Color3(0.26, 0.64, 0.18)  // Vert olive champêtre
+    ];
+    const diffuse = greenVariants[this.colorVariant % greenVariants.length];
 
-    // Corps du buisson (forme dodue low-poly)
-    this.mesh = MeshBuilder.CreateSphere('bushMesh', {
-      diameterX: 1.35,
-      diameterY: 1.05,
-      diameterZ: 1.35,
+    const bushMat = new StandardMaterial(`mat_bush_${this.colorVariant}`, this.scene);
+    bushMat.diffuseColor = diffuse;
+    bushMat.specularColor = new Color3(0.04, 0.08, 0.04);
+
+    // Corps principal du buisson avec étirement spécifique
+    const mainDiamX = 1.35 * this.scale * this.scaleX;
+    const mainDiamY = 1.05 * this.scale * this.scaleY;
+    const mainDiamZ = 1.35 * this.scale * this.scaleZ;
+
+    const mainMesh = MeshBuilder.CreateSphere('bushMainMesh', {
+      diameterX: mainDiamX,
+      diameterY: mainDiamY,
+      diameterZ: mainDiamZ,
       segments: 6
     }, this.scene);
-    this.mesh.material = bushMat;
-    this.mesh.position.y = 0.52;
-    this.mesh.parent = this.root;
+    mainMesh.material = bushMat;
+    mainMesh.position.y = (mainDiamY / 2);
+    mainMesh.parent = this.root;
+    this.meshes.push(mainMesh);
+
+    // Clump multi-lobes asymétrique (petits lobes feuillus secondaires)
+    if (this.multiLobe) {
+      const lobe1 = MeshBuilder.CreateSphere('bushLobe1', {
+        diameterX: mainDiamX * 0.68,
+        diameterY: mainDiamY * 0.75,
+        diameterZ: mainDiamZ * 0.68,
+        segments: 5
+      }, this.scene);
+      lobe1.material = bushMat;
+      lobe1.position.set(mainDiamX * 0.32, mainDiamY * 0.38, -mainDiamZ * 0.20);
+      lobe1.parent = this.root;
+      this.meshes.push(lobe1);
+
+      const lobe2 = MeshBuilder.CreateSphere('bushLobe2', {
+        diameterX: mainDiamX * 0.55,
+        diameterY: mainDiamY * 0.65,
+        diameterZ: mainDiamZ * 0.55,
+        segments: 5
+      }, this.scene);
+      lobe2.material = bushMat;
+      lobe2.position.set(-mainDiamX * 0.30, mainDiamY * 0.32, mainDiamZ * 0.25);
+      lobe2.parent = this.root;
+      this.meshes.push(lobe2);
+    }
   }
 
   getPosition() {
@@ -60,15 +109,27 @@ export class Bush {
     // Effet visuel de destruction (petites feuilles qui volent puis disparaissent)
     this.spawnLeafDebris();
 
-    // Disparition du buisson principal
-    if (this.mesh) {
-      this.mesh.dispose();
-      this.mesh = null;
-    }
+    // Disparition des maillages du buisson
+    this.clearMeshes();
 
     // Probabilité d'apparition d'un cœur (40% de chance)
     if (Math.random() < 0.40) {
       this.spawnHeart(spawnHeartCallback);
+    }
+  }
+
+  clearMeshes() {
+    this.meshes.forEach(m => {
+      if (m) m.dispose();
+    });
+    this.meshes = [];
+  }
+
+  reset() {
+    if (this.isCut) {
+      this.clearMeshes();
+      this.isCut = false;
+      this.initMesh();
     }
   }
 

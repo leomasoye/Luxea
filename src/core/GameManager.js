@@ -299,11 +299,12 @@ export class GameManager {
     if (this.input.consumeAttack()) {
       const swung = this.player.attack();
       if (swung) {
-        // Test de collision avec les buissons et l'environnement
+        // Test de collision avec les buissons, ronces, mannequin et l'environnement
         this.level.checkSwordHits(
           this.player.getPosition(),
           this.player.facingAngle,
-          this.player.weapon
+          this.player.weapon,
+          this.cameraManager
         );
       }
     }
