@@ -39,6 +39,7 @@ export class UIManager {
 
     this.settingsModal = document.getElementById('settings-modal');
     this.btnSettingsAudio = document.getElementById('btn-settings-audio');
+    this.btnResetSave = document.getElementById('btn-reset-save');
     this.btnSettingsBack = document.getElementById('btn-settings-back');
 
     this.quitModal = document.getElementById('quit-modal');

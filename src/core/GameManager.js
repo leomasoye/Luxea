@@ -101,6 +101,10 @@ export class GameManager {
       this.ui.updateSoundButton(!active);
     });
 
+    this.ui.btnResetSave?.addEventListener('click', () => {
+      this.resetProgression();
+    });
+
     this.ui.btnSettingsBack?.addEventListener('click', () => {
       this.closeSettings();
     });
@@ -229,24 +233,42 @@ export class GameManager {
     this.ui.showGameOver();
   }
 
+  resetProgression() {
+    const fresh = SaveManager.reset();
+    Object.assign(this.saveData, fresh);
+    this.cave.resetPuzzle();
+    this.ui.updateKeys(this.saveData.simpleKey, this.saveData.bossKey);
+    this.ui.hideSettings();
+    this.respawnPlayer();
+  }
+
   respawnPlayer() {
     if (this.currentZone === 'cavern') {
-      // Réapparition à l'entrée de la Caverne (cadrage 3/4 vers l'intérieur)
+      // Retour complet à la Plaine d'Éveil (conforme au libellé « Réapparaître dans la Plaine »)
       this.cave.resetEnemies();
-      this.player.reset(185.0, 0, 0);
-      this.player.facingAngle = Math.PI / 2;
-      this.player.targetFacingAngle = Math.PI / 2;
-      if (this.player.rollNode) this.player.rollNode.rotation.y = Math.PI / 2;
-      this.player.visualRoot.rotation.y = Math.PI / 2;
-      if (this.cameraManager) {
-        this.cameraManager.snapTo(new Vector3(185.0, 1.2, 0), -Math.PI * 0.78, 8.5);
-      }
-    } else {
-      // Réapparition au Spawn de la Plaine d'Éveil
-      this.player.reset(0, 0, -4);
-      if (this.cameraManager) {
-        this.cameraManager.snapTo(this.player.getPosition(), -Math.PI / 2);
-      }
+      this.cave.setEnabled(false);
+      this.environment.root.setEnabled(true);
+      this.level.root.setEnabled(true);
+
+      this.currentZone = 'plaine';
+      this.collision.setZone('plaine');
+      this.lightingManager.setZone('plaine');
+
+      this.player.setBounds({ minX: -26, maxX: 26, minZ: -23, maxZ: 26 });
+      this.cameraManager.setBounds({ minX: -26, maxX: 26, minZ: -24, maxZ: 28 });
+      this.player.setZone('plaine');
+      this.player.setGroundHeightProvider(null);
+      this.player.root.position.y = 0;
+    }
+
+    // Réapparition au Spawn de la Plaine d'Éveil
+    this.player.reset(0, 0, -4);
+    this.player.facingAngle = 0;
+    this.player.targetFacingAngle = 0;
+    if (this.player.rollNode) this.player.rollNode.rotation.y = 0;
+    this.player.visualRoot.rotation.y = 0;
+    if (this.cameraManager) {
+      this.cameraManager.snapTo(this.player.getPosition(), -Math.PI / 2);
     }
     this.ui.updateHealth(this.player.health);
     this.ui.updateLightGauge(this.player.lightGauge, false);

@@ -94,18 +94,18 @@ export class LightingManager {
         this.sunLight.intensity = 0.0;
       }
       if (this.ambientLight) {
-        this.ambientLight.intensity = 0.10;
-        this.ambientLight.diffuse = new Color3(0.12, 0.15, 0.22);
-        this.ambientLight.groundColor = new Color3(0.015, 0.02, 0.03);
+        this.ambientLight.intensity = 0.16;
+        this.ambientLight.diffuse = new Color3(0.16, 0.20, 0.30);
+        this.ambientLight.groundColor = new Color3(0.03, 0.04, 0.06);
       }
-      this.scene.clearColor = new Color3(0.012, 0.015, 0.022).toColor4(1.0);
-      this.scene.fogColor = new Color3(0.012, 0.015, 0.022);
-      this.scene.fogDensity = 0.034;
+      this.scene.clearColor = new Color3(0.018, 0.022, 0.034).toColor4(1.0);
+      this.scene.fogColor = new Color3(0.018, 0.022, 0.034);
+      this.scene.fogDensity = 0.023;
 
       // La lueur de l'épée dans l'obscurité souterraine
       this.baseSwordIntensity = 3.2;
-      this.torchSwordIntensity = 6.4;
-      this.baseRange = 12.0;
+      this.torchSwordIntensity = 6.2;
+      this.baseRange = 13.0;
       this.torchRange = 26.0;
     } else {
       if (this.sunLight) {

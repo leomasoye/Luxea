@@ -76,46 +76,52 @@ export class CaveManager {
   }
 
   initMaterials() {
-    // Sol de pierre sombre
+    // Sol de pierre sombre (léger emissiveColor pour éviter toute face noir pur hors cône de torche)
     this.floorMat = new StandardMaterial('mat_cave_floor', this.scene);
-    this.floorMat.diffuseColor = new Color3(0.13, 0.15, 0.19);
-    this.floorMat.specularColor = new Color3(0.04, 0.05, 0.06);
-    this.floorMat.maxSimultaneousLights = 8;
+    this.floorMat.diffuseColor = new Color3(0.16, 0.19, 0.24);
+    this.floorMat.emissiveColor = new Color3(0.03, 0.035, 0.05);
+    this.floorMat.specularColor = new Color3(0.04, 0.05, 0.07);
+    this.floorMat.maxSimultaneousLights = 12;
     this.floorMat.freeze();
 
     // Dalles centrales pavées (allée usée)
     this.pavingMat = new StandardMaterial('mat_cave_paving', this.scene);
-    this.pavingMat.diffuseColor = new Color3(0.18, 0.20, 0.26);
-    this.pavingMat.specularColor = new Color3(0.06, 0.07, 0.08);
-    this.pavingMat.maxSimultaneousLights = 8;
+    this.pavingMat.diffuseColor = new Color3(0.21, 0.24, 0.30);
+    this.pavingMat.emissiveColor = new Color3(0.035, 0.04, 0.055);
+    this.pavingMat.specularColor = new Color3(0.06, 0.07, 0.09);
+    this.pavingMat.maxSimultaneousLights = 12;
     this.pavingMat.freeze();
 
     // Sol de la terrasse surélevée Nord
     this.terraceFloorMat = new StandardMaterial('mat_terrace_floor', this.scene);
-    this.terraceFloorMat.diffuseColor = new Color3(0.16, 0.18, 0.23);
-    this.terraceFloorMat.specularColor = new Color3(0.05, 0.06, 0.07);
-    this.terraceFloorMat.maxSimultaneousLights = 8;
+    this.terraceFloorMat.diffuseColor = new Color3(0.18, 0.21, 0.27);
+    this.terraceFloorMat.emissiveColor = new Color3(0.03, 0.035, 0.05);
+    this.terraceFloorMat.specularColor = new Color3(0.05, 0.06, 0.08);
+    this.terraceFloorMat.maxSimultaneousLights = 12;
     this.terraceFloorMat.freeze();
 
     // Parois rocheuses périmétriques
     this.wallMat = new StandardMaterial('mat_cave_wall', this.scene);
-    this.wallMat.diffuseColor = new Color3(0.19, 0.21, 0.27);
+    this.wallMat.diffuseColor = new Color3(0.21, 0.24, 0.31);
+    this.wallMat.emissiveColor = new Color3(0.032, 0.038, 0.055);
     this.wallMat.specularColor = new Color3(0.03, 0.04, 0.05);
-    this.wallMat.maxSimultaneousLights = 8;
+    this.wallMat.maxSimultaneousLights = 12;
     this.wallMat.freeze();
 
     // Falaise / Muret de soutènement de la terrasse
     this.cliffMat = new StandardMaterial('mat_cave_cliff', this.scene);
-    this.cliffMat.diffuseColor = new Color3(0.22, 0.25, 0.31);
-    this.cliffMat.specularColor = new Color3(0.05, 0.06, 0.07);
-    this.cliffMat.maxSimultaneousLights = 8;
+    this.cliffMat.diffuseColor = new Color3(0.24, 0.27, 0.34);
+    this.cliffMat.emissiveColor = new Color3(0.035, 0.04, 0.055);
+    this.cliffMat.specularColor = new Color3(0.04, 0.05, 0.07);
+    this.cliffMat.maxSimultaneousLights = 12;
     this.cliffMat.freeze();
 
     // Stalagmites et formations rocheuses brutes
     this.rockMat = new StandardMaterial('mat_cave_rock', this.scene);
-    this.rockMat.diffuseColor = new Color3(0.15, 0.17, 0.22);
-    this.rockMat.specularColor = new Color3(0.03, 0.03, 0.04);
-    this.rockMat.maxSimultaneousLights = 8;
+    this.rockMat.diffuseColor = new Color3(0.18, 0.20, 0.26);
+    this.rockMat.emissiveColor = new Color3(0.028, 0.032, 0.046);
+    this.rockMat.specularColor = new Color3(0.03, 0.04, 0.05);
+    this.rockMat.maxSimultaneousLights = 12;
     this.rockMat.freeze();
 
     // Cristaux souterrains mystiques — Émeraude / Turquoise
@@ -144,9 +150,10 @@ export class CaveManager {
 
     // Reliefs rocheux sombres / strates
     this.reliefMat = new StandardMaterial('mat_cave_relief', this.scene);
-    this.reliefMat.diffuseColor = new Color3(0.14, 0.16, 0.21);
+    this.reliefMat.diffuseColor = new Color3(0.17, 0.19, 0.25);
+    this.reliefMat.emissiveColor = new Color3(0.028, 0.032, 0.046);
     this.reliefMat.specularColor = new Color3(0.03, 0.04, 0.05);
-    this.reliefMat.maxSimultaneousLights = 8;
+    this.reliefMat.maxSimultaneousLights = 12;
     this.reliefMat.freeze();
 
     // Mousse minérale sombre au sol
@@ -170,14 +177,14 @@ export class CaveManager {
     floorCenter.parent = this.root;
     floorCenter.freezeWorldMatrix();
 
-    // Sol de la Galerie Est (X: 215 à 230, Z: -10 à 10)
+    // Sol de la Galerie Est (X: 215 à 231, Z: -12 à 12 pour couvrir tous les angles)
     const floorEast = MeshBuilder.CreateGround('cave_floor_east', {
-      width: 15,
-      height: 20,
-      subdivisions: 3
+      width: 16,
+      height: 24,
+      subdivisions: 4
     }, this.scene);
     floorEast.material = this.floorMat;
-    floorEast.position.set(222.5, 0, 0);
+    floorEast.position.set(223.0, 0, 0);
     floorEast.parent = this.root;
     floorEast.freezeWorldMatrix();
 
@@ -192,14 +199,14 @@ export class CaveManager {
     floorSouth.parent = this.root;
     floorSouth.freezeWorldMatrix();
 
-    // Allée centrale pavée de dalles antiques reliant l'entrée vers l'Est
+    // Allée centrale pavée de dalles antiques reliant l'entrée jusqu'à la Porte de la Crypte Est
     const mainAisle = MeshBuilder.CreateGround('cave_main_aisle', {
-      width: 36,
+      width: 49,
       height: 4.6,
-      subdivisions: 4
+      subdivisions: 6
     }, this.scene);
     mainAisle.material = this.pavingMat;
-    mainAisle.position.set(198, 0.015, 0);
+    mainAisle.position.set(204.5, 0.015, 0);
     mainAisle.parent = this.root;
     mainAisle.freezeWorldMatrix();
   }
@@ -460,14 +467,33 @@ export class CaveManager {
     createStalagmiteCluster('stalag_south_2', 201.0, -12.5, 1.2, 4.6);
     createStalagmiteCluster('stalag_south_3', 203.2, -12.5, 1.0, 3.8);
 
-    // 2. Éboulis et rochers dans la Grande Salle Centrale
+    // 2. Éboulis et rochers dans la Grande Salle Centrale et le Vestibule Ouest (gauche & droite à l'arrivée)
     createBoulder('boulder_center_1', 195.0, 1.0, -4.5, 1.8, 1.4, 1.6, 0.7, 1.3);
     createBoulder('boulder_center_2', 208.5, 1.2, -3.0, 1.6, 1.5, 1.7, 1.9, 1.25);
     createStalagmiteCluster('stalag_center_1', 208.0, 3.5, 1.15, 3.9);
 
-    // 3. Formations rocheuses dans la Crypte Est
+    // Zone Nord-Ouest (à gauche en arrivant dans la caverne)
+    createStalagmiteCluster('stalag_nw_1', 188.5, 9.2, 1.15, 4.4);
+    createStalagmiteCluster('stalag_nw_2', 191.2, 7.6, 0.95, 3.5);
+    createBoulder('boulder_nw_1', 185.8, 0.9, 8.6, 1.7, 1.3, 1.5, 1.1, 1.2);
+    createBoulder('boulder_nw_2', 182.2, 0.8, 4.8, 1.3, 1.1, 1.4, 2.3, 1.0);
+
+    // Zone Sud-Ouest (à droite en arrivant dans la caverne)
+    createStalagmiteCluster('stalag_sw_1', 185.8, -6.5, 1.05, 3.8);
+    createStalagmiteCluster('stalag_sw_2', 189.2, -9.2, 1.20, 4.5);
+    createBoulder('boulder_sw_1', 182.8, 0.9, -5.2, 1.5, 1.2, 1.4, 0.4, 1.1);
+
+    // Renfort visuel Nord-Est devant la Crypte & coins du Plateau Nord
+    createStalagmiteCluster('stalag_ne_center', 211.5, 6.5, 1.05, 4.1);
+    createStalagmiteCluster('stalag_terrace_nw', 195.8, 21.5, 1.0, 3.6);
+    createStalagmiteCluster('stalag_terrace_ne', 215.2, 21.5, 1.0, 3.6);
+
+    // 3. Formations rocheuses dans la Crypte Est (remplissage des recoins NE et SE)
     createStalagmiteCluster('stalag_east_1', 222.0, -6.5, 1.1, 4.0);
+    createStalagmiteCluster('stalag_east_2', 226.8, 6.8, 1.0, 3.7);
+    createStalagmiteCluster('stalag_east_3', 219.5, -8.5, 0.95, 3.4);
     createBoulder('boulder_east_niche', 226.5, 1.0, 8.5, 1.5, 1.3, 1.5, 2.2, 1.15);
+    createBoulder('boulder_east_se', 224.8, 0.9, -8.2, 1.4, 1.2, 1.4, 1.1, 1.05);
   }
 
   // --- 5b. Grappes de Cristaux Souterrains Lumineux répartis dans toute la grotte ---
@@ -528,8 +554,10 @@ export class CaveManager {
     createCluster('south_5', 210.2, 0, -17.5, 1.05, 'emerald');
 
     // 2. Vestibule & Salle Centrale (points de repère visuels lumineux)
-    createCluster('west_n', 183.2, 0, 8.2, 1.05, 'blue');
-    createCluster('west_s', 183.8, 0, -8.8, 0.95, 'emerald');
+    createCluster('west_n', 183.2, 0, 8.2, 1.10, 'blue');
+    createCluster('west_nw_inner', 190.4, 0, 4.8, 0.95, 'emerald');
+    createCluster('west_s', 183.8, 0, -8.8, 1.05, 'emerald');
+    createCluster('west_sw_inner', 192.2, 0, -9.8, 1.00, 'purple');
     createCluster('center_ramp_l', 198.2, 0, 8.6, 0.90, 'purple');
     createCluster('center_ramp_r', 205.8, 0, 8.6, 0.90, 'purple');
     createCluster('center_se', 211.8, 0, -9.8, 1.10, 'emerald');
@@ -923,13 +951,14 @@ export class CaveManager {
 
   // --- 9. Implantation des 7 Torches / Braseros dans tous les recoins ---
   initTorches() {
-    // Liste des emplacements stratégiques exploratoires
+    // Les torches principales de l'entrée, du carrefour et du fond éclairent dès l'arrivée,
+    // tandis que les recoins restent à allumer par le joueur pour révéler tout le donjon.
     const torchConfigs = [
-      // 1. Vestibule Ouest (près de l'arrivée dans la caverne)
-      { id: 'west', x: 186.0, y: 0.0, z: 4.0, startLit: false },
+      // 1. Vestibule Ouest (allumée pour accueillir Zelya et éclairer la gauche dès l'entrée)
+      { id: 'west', x: 186.0, y: 0.0, z: 4.0, startLit: true },
 
-      // 2. Carrefour de la Salle Centrale
-      { id: 'center', x: 201.0, y: 0.0, z: -3.5, startLit: false },
+      // 2. Carrefour de la Salle Centrale (allumée)
+      { id: 'center', x: 201.0, y: 0.0, z: -3.5, startLit: true },
 
       // 3. Plateau Nord Surélevé - Côté gauche de l'autel
       { id: 'north_l', x: 198.0, y: 1.6, z: 19.5, startLit: false },
@@ -943,15 +972,15 @@ export class CaveManager {
       // 6. Niche Nord-Est de la Crypte
       { id: 'east_niche', x: 224.0, y: 0.0, z: 7.5, startLit: false },
 
-      // 7. Fond Est de la Crypte (Chambre des Échos)
-      { id: 'east_main', x: 227.5, y: 0.0, z: 0.0, startLit: false }
+      // 7. Fond Est de la Crypte (allumée pour mettre en valeur la porte verrouillée)
+      { id: 'east_main', x: 227.5, y: 0.0, z: 0.0, startLit: true }
     ];
 
     torchConfigs.forEach(cfg => {
       const torch = new Torch(this.scene, this.root, cfg.x, cfg.y, cfg.z, cfg.id, {
         startLit: cfg.startLit,
-        lightRange: 22.0,
-        lightIntensity: 4.8
+        lightRange: 17.5,
+        lightIntensity: 4.0
       });
       this.torches.push(torch);
     });
@@ -1260,6 +1289,43 @@ export class CaveManager {
       this.arrows[i].dispose();
     }
     this.arrows = [];
+  }
+
+  resetPuzzle() {
+    this.switchActivated = false;
+    this.chestRevealed = false;
+    this.chestOpened = false;
+    this.cryptDoorOpened = false;
+
+    if (this.switchPlate) {
+      this.switchPlate.position.y = 0.16;
+    }
+    if (this.switchPlateMat) {
+      this.switchPlateMat.emissiveColor.set(0.35, 0.25, 0.05);
+    }
+    if (this.chestRoot) {
+      this.chestRoot.setEnabled(false);
+    }
+    if (this.chestLidPivot) {
+      this.chestLidPivot.rotation.x = 0;
+    }
+    if (this.doorLeafL) this.doorLeafL.position.z = -0.82;
+    if (this.doorLeafR) this.doorLeafR.position.z = 0.82;
+    if (this.doorLockEmblem) this.doorLockEmblem.setEnabled(true);
+
+    if (this.breakableRocks.length === 0) {
+      const rock = new BreakableRock(this.scene, this.root, this.switchPos.x, 0, this.switchPos.z, 'secret_switch_rock');
+      this.breakableRocks.push(rock);
+    } else {
+      this.breakableRocks.forEach(r => {
+        r.health = 2;
+        r.isBroken = false;
+        r.root.setEnabled(true);
+        r.visualNode.scaling.set(1, 1, 1);
+        r.crackMat.emissiveColor.set(0.30, 0.24, 0.08);
+      });
+    }
+    this.resetEnemies();
   }
 
   resetEnemies() {
