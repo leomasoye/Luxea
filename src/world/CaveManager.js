@@ -8,6 +8,9 @@ import {
 import { Torch } from '../entities/Torch.js';
 import { SkeletonArcher } from '../entities/SkeletonArcher.js';
 import { CaveBat } from '../entities/CaveBat.js';
+import { HazardCrystal } from '../entities/HazardCrystal.js';
+import { BreakableRock } from '../entities/BreakableRock.js';
+import { SaveManager } from '../core/SaveManager.js';
 
 /**
  * CaveManager.js — Intérieur complet de la Caverne du Gardien (Zone 2).
@@ -23,8 +26,9 @@ import { CaveBat } from '../entities/CaveBat.js';
  * - Performance 60 FPS garantie : freezeWorldMatrix(), freeze(), ThinInstances/InstancedMesh.
  */
 export class CaveManager {
-  constructor(scene) {
+  constructor(scene, saveData = null) {
     this.scene = scene;
+    this.saveData = saveData || SaveManager.getDefaults();
     this.root = new TransformNode('CaveRoot', this.scene);
 
     // Espace de coordonnées de la caverne : X de 180 à 230, Z de -23 à 24
@@ -35,9 +39,19 @@ export class CaveManager {
     this.skeletons = [];
     this.arrows = [];
     this.bats = [];
+    this.hazardCrystals = [];
+    this.breakableRocks = [];
+    this.interactables = [];
+    this.pendingNotification = null;
     this.caveParticles = [];
     this.particleTime = 0;
     this.rockColliders = [];
+
+    // État du scénario de la caverne
+    this.switchActivated = !!this.saveData.simpleKey;
+    this.chestRevealed = !!this.saveData.simpleKey;
+    this.chestOpened = !!this.saveData.simpleKey;
+    this.cryptDoorOpened = false;
 
     // Matériaux partagés avec maxSimultaneousLights = 8 pour supporter l'éclairage des torches
     this.initMaterials();
@@ -50,6 +64,8 @@ export class CaveManager {
     this.initWallReliefs();
     this.initStalagmitesAndBoulders();
     this.initCrystalClusters();
+    this.initHazardCrystals();
+    this.initSecretPuzzleAndDoor();
     this.initAncientMonoliths();
     this.initEntranceExitCorridor();
     this.initCeiling();
@@ -531,6 +547,244 @@ export class CaveManager {
     createCluster('east_back_s', 228.5, 0, -3.8, 1.00, 'emerald');
   }
 
+  // --- 5c. Cristaux corrompus (rouges) infligeant des dégâts au contact ---
+  initHazardCrystals() {
+    const hazards = [
+      // Recoin Secret Sud (parcours d'esquive vers le rocher cassable)
+      { id: 'south_1', x: 198.2, y: 0, z: -15.6, s: 0.95 },
+      { id: 'south_2', x: 206.4, y: 0, z: -15.8, s: 1.0 },
+      { id: 'south_3', x: 199.6, y: 0, z: -19.2, s: 0.90 },
+      // Crypte Est (flanc Nord)
+      { id: 'east_1', x: 224.2, y: 0, z: 5.2, s: 0.95 }
+    ];
+
+    hazards.forEach(h => {
+      const hc = new HazardCrystal(this.scene, this.root, h.x, h.y, h.z, h.id, h.s);
+      this.hazardCrystals.push(hc);
+    });
+  }
+
+  // --- 5d. Scénario : Pierres cassables -> Bouton secret -> Coffre (Clé) -> Porte verrouillée ---
+  initSecretPuzzleAndDoor() {
+    // 1. Dalle-interrupteur cachée au sol du Recoin Secret Sud (X: 203.0, Z: -18.5)
+    this.switchPos = new Vector3(203.0, 0.02, -18.5);
+    this.switchBaseMat = new StandardMaterial('mat_cave_switch_base', this.scene);
+    this.switchBaseMat.diffuseColor = new Color3(0.24, 0.26, 0.32);
+    this.switchBaseMat.maxSimultaneousLights = 8;
+    this.switchBaseMat.freeze();
+
+    this.switchPlateMat = new StandardMaterial('mat_cave_switch_plate', this.scene);
+    this.switchPlateMat.diffuseColor = new Color3(0.75, 0.58, 0.18);
+    this.switchPlateMat.emissiveColor = this.switchActivated
+      ? new Color3(0.15, 0.85, 0.45)
+      : new Color3(0.35, 0.25, 0.05);
+    this.switchPlateMat.maxSimultaneousLights = 8;
+
+    const swBase = MeshBuilder.CreateBox('cave_switch_base', { width: 1.4, height: 0.12, depth: 1.4 }, this.scene);
+    swBase.material = this.switchBaseMat;
+    swBase.position.set(this.switchPos.x, 0.06, this.switchPos.z);
+    swBase.parent = this.root;
+    swBase.freezeWorldMatrix();
+
+    this.switchPlate = MeshBuilder.CreateBox('cave_switch_plate', { width: 1.0, height: 0.14, depth: 1.0 }, this.scene);
+    this.switchPlate.material = this.switchPlateMat;
+    this.switchPlate.position.set(this.switchPos.x, this.switchActivated ? 0.09 : 0.16, this.switchPos.z);
+    this.switchPlate.parent = this.root;
+
+    // 2. Amas de pierres fissurées recouvrant la dalle-interrupteur (cassable en 2 coups)
+    if (!this.switchActivated) {
+      const rock = new BreakableRock(this.scene, this.root, this.switchPos.x, 0, this.switchPos.z, 'secret_switch_rock');
+      this.breakableRocks.push(rock);
+    }
+
+    // 3. Coffre ancien caché devant l'Autel du Plateau Nord (X: 205.5, Y: 1.6, Z: 18.8)
+    this.chestPos = new Vector3(205.5, 1.6, 18.8);
+    this.chestRoot = new TransformNode('cave_secret_chest', this.scene);
+    this.chestRoot.position.copyFrom(this.chestPos);
+    this.chestRoot.parent = this.root;
+
+    const woodMat = new StandardMaterial('mat_chest_wood', this.scene);
+    woodMat.diffuseColor = new Color3(0.45, 0.26, 0.12);
+    woodMat.maxSimultaneousLights = 8;
+    woodMat.freeze();
+
+    const goldMat = new StandardMaterial('mat_chest_gold', this.scene);
+    goldMat.diffuseColor = new Color3(0.95, 0.78, 0.22);
+    goldMat.emissiveColor = new Color3(0.35, 0.25, 0.04);
+    goldMat.maxSimultaneousLights = 8;
+    goldMat.freeze();
+
+    const chestBase = MeshBuilder.CreateBox('chest_base', { width: 1.35, height: 0.65, depth: 0.90 }, this.scene);
+    chestBase.material = woodMat;
+    chestBase.position.y = 0.325;
+    chestBase.parent = this.chestRoot;
+
+    const chestTrim = MeshBuilder.CreateBox('chest_trim', { width: 1.40, height: 0.12, depth: 0.94 }, this.scene);
+    chestTrim.material = goldMat;
+    chestTrim.position.y = 0.60;
+    chestTrim.parent = this.chestRoot;
+
+    const chestLock = MeshBuilder.CreateBox('chest_lock', { width: 0.20, height: 0.24, depth: 0.08 }, this.scene);
+    chestLock.material = goldMat;
+    chestLock.position.set(0, 0.56, -0.47);
+    chestLock.parent = this.chestRoot;
+
+    // Couvercle articulé
+    this.chestLidPivot = new TransformNode('chest_lid_pivot', this.scene);
+    this.chestLidPivot.position.set(0, 0.65, 0.45);
+    this.chestLidPivot.parent = this.chestRoot;
+
+    const chestLid = MeshBuilder.CreateBox('chest_lid', { width: 1.38, height: 0.28, depth: 0.92 }, this.scene);
+    chestLid.material = woodMat;
+    chestLid.position.set(0, 0.14, -0.45);
+    chestLid.parent = this.chestLidPivot;
+
+    if (this.chestOpened) {
+      this.chestLidPivot.rotation.x = 1.35;
+    }
+    this.chestRoot.setEnabled(this.chestRevealed);
+
+    // 4. Grande Porte Verrouillée au fond de la Crypte Est (X: 229.3, Y: 0, Z: 0)
+    this.cryptDoorPos = new Vector3(229.3, 0, 0);
+    const doorFrameMat = new StandardMaterial('mat_crypt_door_frame', this.scene);
+    doorFrameMat.diffuseColor = new Color3(0.26, 0.29, 0.36);
+    doorFrameMat.maxSimultaneousLights = 8;
+    doorFrameMat.freeze();
+
+    const bronzeMat = new StandardMaterial('mat_crypt_door_bronze', this.scene);
+    bronzeMat.diffuseColor = new Color3(0.42, 0.31, 0.18);
+    bronzeMat.specularColor = new Color3(0.30, 0.24, 0.14);
+    bronzeMat.maxSimultaneousLights = 8;
+    bronzeMat.freeze();
+
+    const portalMat = new StandardMaterial('mat_crypt_portal', this.scene);
+    portalMat.diffuseColor = new Color3(0.25, 0.85, 0.95);
+    portalMat.emissiveColor = new Color3(0.18, 0.68, 0.85);
+    portalMat.freeze();
+
+    // Cadre de porte en pierre
+    const frameL = MeshBuilder.CreateBox('crypt_door_fl', { width: 0.9, height: 4.8, depth: 0.9 }, this.scene);
+    frameL.material = doorFrameMat;
+    frameL.position.set(229.2, 2.4, -2.0);
+    frameL.parent = this.root;
+    frameL.freezeWorldMatrix();
+
+    const frameR = MeshBuilder.CreateBox('crypt_door_fr', { width: 0.9, height: 4.8, depth: 0.9 }, this.scene);
+    frameR.material = doorFrameMat;
+    frameR.position.set(229.2, 2.4, 2.0);
+    frameR.parent = this.root;
+    frameR.freezeWorldMatrix();
+
+    const frameTop = MeshBuilder.CreateBox('crypt_door_ft', { width: 1.0, height: 0.9, depth: 5.0 }, this.scene);
+    frameTop.material = doorFrameMat;
+    frameTop.position.set(229.2, 4.9, 0);
+    frameTop.parent = this.root;
+    frameTop.freezeWorldMatrix();
+
+    // Lueur mystique derrière la porte (visible une fois ouverte)
+    const portalGlow = MeshBuilder.CreatePlane('crypt_portal_glow', { width: 3.2, height: 4.4 }, this.scene);
+    portalGlow.material = portalMat;
+    portalGlow.rotation.y = -Math.PI / 2;
+    portalGlow.position.set(229.45, 2.2, 0);
+    portalGlow.parent = this.root;
+    portalGlow.freezeWorldMatrix();
+
+    // Deux vantaux en bronze coulissants
+    this.doorLeafL = MeshBuilder.CreateBox('crypt_door_leaf_l', { width: 0.45, height: 4.4, depth: 1.65 }, this.scene);
+    this.doorLeafL.material = bronzeMat;
+    this.doorLeafL.position.set(229.1, 2.2, -0.82);
+    this.doorLeafL.parent = this.root;
+
+    this.doorLeafR = MeshBuilder.CreateBox('crypt_door_leaf_r', { width: 0.45, height: 4.4, depth: 1.65 }, this.scene);
+    this.doorLeafR.material = bronzeMat;
+    this.doorLeafR.position.set(229.1, 2.2, 0.82);
+    this.doorLeafR.parent = this.root;
+
+    // Serrure dorée centrale
+    this.doorLockEmblem = MeshBuilder.CreateBox('crypt_door_lock', { width: 0.55, height: 0.65, depth: 0.55 }, this.scene);
+    this.doorLockEmblem.material = goldMat;
+    this.doorLockEmblem.position.set(229.0, 2.0, 0);
+    this.doorLockEmblem.parent = this.root;
+
+    // Enregistrement des interactables de la caverne (Coffre + Porte)
+    this.interactables.push({
+      id: 'cave_secret_chest',
+      position: this.chestPos,
+      radius: 2.3,
+      speaker: 'Coffre Ancien',
+      isAvailable: () => this.chestRevealed && !this.chestOpened,
+      promptText: '[E] Ouvrir le coffre',
+      onInteract: () => {
+        if (this.chestOpened) return;
+        this.chestOpened = true;
+        this.chestLidPivot.rotation.x = 1.35;
+        this.saveData.simpleKey = true;
+        SaveManager.save(this.saveData);
+      },
+      getText: () =>
+        'Vous ouvrez le coffre ancien et trouvez la Clé de la Caverne ! Elle devrait ouvrir la grande porte verrouillée au fond de la Crypte Est.'
+    });
+
+    this.interactables.push({
+      id: 'cave_crypt_door',
+      position: new Vector3(228.6, 0, 0),
+      radius: 2.8,
+      speaker: 'Porte de la Crypte',
+      isAvailable: () => !this.cryptDoorOpened,
+      getPromptText: () => (this.saveData.simpleKey ? '[E] Déverrouiller la porte' : '[E] Examiner la porte'),
+      onInteract: () => {
+        if (!this.saveData.simpleKey || this.cryptDoorOpened) return;
+        this.cryptDoorOpened = true;
+        this.doorLeafL.position.z = -2.35;
+        this.doorLeafR.position.z = 2.35;
+        this.doorLockEmblem.setEnabled(false);
+      },
+      getText: () => {
+        if (this.cryptDoorOpened || this.saveData.simpleKey) {
+          return 'La Clé de la Caverne tourne dans la serrure ! Les lourds vantaux de bronze s\'ouvrent lentement, révélant le passage vers les profondeurs du sanctuaire.';
+        }
+        return 'Cette lourde porte de bronze est verrouillée. Une serrure dorée attend une clé ancienne… Peut-être est-elle cachée quelque part dans la caverne ?';
+      }
+    });
+  }
+
+  /**
+   * Retourne l'élément interactif le plus proche de Zelya dans la caverne.
+   */
+  getNearestInteractable(playerPos, playerFacingAngle = null) {
+    let nearest = null;
+    let minDist = Infinity;
+
+    for (let i = 0; i < this.interactables.length; i++) {
+      const item = this.interactables[i];
+      if (typeof item.isAvailable === 'function' && !item.isAvailable()) continue;
+      if (Math.abs(item.position.y - playerPos.y) > 1.3) continue;
+
+      const dx = item.position.x - playerPos.x;
+      const dz = item.position.z - playerPos.z;
+      const dist = Math.hypot(dx, dz);
+
+      if (dist <= item.radius && dist < minDist) {
+        if (playerFacingAngle !== null && playerFacingAngle !== undefined && dist > 0.1) {
+          const dot = Math.sin(playerFacingAngle) * (dx / dist) + Math.cos(playerFacingAngle) * (dz / dist);
+          if (dot < -0.25) continue;
+        }
+        minDist = dist;
+        nearest = {
+          ...item,
+          promptText: typeof item.getPromptText === 'function' ? item.getPromptText() : item.promptText
+        };
+      }
+    }
+    return nearest;
+  }
+
+  consumeNotification() {
+    const n = this.pendingNotification;
+    this.pendingNotification = null;
+    return n;
+  }
+
   // --- 6. Piliers antiques & Autel monolithique sur la terrasse ---
   initAncientMonoliths() {
     const colMat = new StandardMaterial('mat_cave_column', this.scene);
@@ -755,24 +1009,41 @@ export class CaveManager {
     });
   }
 
-  // --- 9c. Chauves-souris inoffensives et visuelles dans plusieurs recoins ---
+  // --- 9c. Nuées de chauves-souris inoffensives à hauteur de vue (réactives à Zelya & à la lumière) ---
   initBats() {
-    const batConfigs = [
-      // Salle Centrale (en hauteur)
-      { id: 'c1', x: 196.0, y: 6.2, z: 1.5, radiusX: 3.8, radiusZ: 2.6, speed: 0.95, figureEight: true },
-      { id: 'c2', x: 205.0, y: 7.1, z: -4.0, radiusX: 3.2, radiusZ: 2.8, speed: 1.10, figureEight: false },
-      // Sanctuaire Sud (au-dessus des cristaux)
-      { id: 's1', x: 202.5, y: 5.6, z: -18.0, radiusX: 3.0, radiusZ: 2.0, speed: 1.05, figureEight: true },
-      { id: 's2', x: 204.0, y: 6.4, z: -17.0, radiusX: 2.4, radiusZ: 1.8, speed: 0.85, figureEight: false },
-      // Plateau Nord (haut sous les stalactites)
-      { id: 'n1', x: 205.5, y: 7.8, z: 16.5, radiusX: 3.6, radiusZ: 2.2, speed: 0.90, figureEight: true },
-      // Crypte Est
-      { id: 'e1', x: 223.0, y: 6.0, z: 1.0, radiusX: 2.8, radiusZ: 3.2, speed: 1.15, figureEight: true }
+    const flocks = [
+      // 1. Nuée du Vestibule / Salle Centrale (visible dès l'entrée dans la grotte)
+      { id: 'west', x: 191.5, y: 2.55, z: 2.0, groundY: 0, count: 3, radiusX: 3.0, radiusZ: 2.2, figureEight: true },
+      // 2. Nuée du Sanctuaire des Cristaux Sud
+      { id: 'south', x: 202.5, y: 2.50, z: -17.8, groundY: 0, count: 4, radiusX: 2.8, radiusZ: 1.9, figureEight: true },
+      // 3. Nuée de la Crypte Est
+      { id: 'east', x: 222.5, y: 2.65, z: 1.8, groundY: 0, count: 3, radiusX: 2.6, radiusZ: 2.8, figureEight: false }
     ];
 
-    batConfigs.forEach(cfg => {
-      const bat = new CaveBat(this.scene, this.root, cfg.x, cfg.y, cfg.z, cfg.id, cfg);
-      this.bats.push(bat);
+    flocks.forEach(flock => {
+      for (let i = 0; i < flock.count; i++) {
+        const angle = (i / flock.count) * Math.PI * 2;
+        const bat = new CaveBat(
+          this.scene,
+          this.root,
+          flock.x,
+          flock.y,
+          flock.z,
+          `${flock.id}_${i}`,
+          {
+            groundY: flock.groundY,
+            radiusX: flock.radiusX + (i % 2) * 0.4,
+            radiusZ: flock.radiusZ + ((i + 1) % 2) * 0.35,
+            speed: 1.05 + (i % 3) * 0.14,
+            figureEight: flock.figureEight,
+            phaseOffset: i * 0.65,
+            offsetX: Math.cos(angle) * 0.75,
+            offsetY: (i - 1) * 0.28,
+            offsetZ: Math.sin(angle) * 0.75
+          }
+        );
+        this.bats.push(bat);
+      }
     });
   }
 
@@ -888,24 +1159,45 @@ export class CaveManager {
       t.initColliders(collisionManager);
     });
 
-    // 6. Collisions dynamiques des Squelettes Archers vivants
+    // 6. Collisions dynamiques des Squelettes Archers vivants & Pierres cassables
     collisionManager.addDynamicSource(() => {
       const list = [];
       for (let i = 0; i < this.skeletons.length; i++) {
         const col = this.skeletons[i].getCollider();
         if (col) list.push(col);
       }
+      for (let i = 0; i < this.breakableRocks.length; i++) {
+        const col = this.breakableRocks[i].getCollider();
+        if (col) list.push(col);
+      }
+      if (this.chestRevealed) {
+        list.push({
+          type: 'box',
+          minX: this.chestPos.x - 0.72,
+          maxX: this.chestPos.x + 0.72,
+          minZ: this.chestPos.z - 0.50,
+          maxZ: this.chestPos.z + 0.50,
+          tag: 'secret_chest',
+          zone: 'cavern'
+        });
+      }
       return list;
     }, 'cavern');
   }
 
   /**
-   * Vérifie les frappes à l'épée contre les torches, les squelettes et les flèches en vol.
+   * Vérifie les frappes à l'épée contre les torches, les squelettes, les pierres cassables et les flèches.
    */
   checkSwordHits(playerPos, playerFacingAngle, weapon, cameraManager = null, audioManager = null) {
     let anyHit = false;
     for (let i = 0; i < this.torches.length; i++) {
       const hit = this.torches[i].checkSwordHit(playerPos, playerFacingAngle, weapon, cameraManager, audioManager);
+      if (hit) anyHit = true;
+    }
+
+    // Frappes sur les pierres cassables
+    for (let i = 0; i < this.breakableRocks.length; i++) {
+      const hit = this.breakableRocks[i].checkSwordHit(playerPos, playerFacingAngle, weapon, cameraManager);
       if (hit) anyHit = true;
     }
 
@@ -1024,9 +1316,41 @@ export class CaveManager {
       }
     }
 
-    // 5. Mise à jour des chauves-souris inoffensives
+    // 5. Mise à jour des nuées de chauves-souris inoffensives (réactives à Zelya & au Mode Torche)
     for (let i = 0; i < this.bats.length; i++) {
-      this.bats[i].update(dt);
+      this.bats[i].update(dt, player);
+    }
+
+    // 5b. Cristaux corrompus (dégâts au contact)
+    for (let i = 0; i < this.hazardCrystals.length; i++) {
+      this.hazardCrystals[i].update(dt, player);
+    }
+
+    // 5c. Pierres cassables & Détection de la dalle-interrupteur secrète
+    let rockStillBlocking = false;
+    for (let i = 0; i < this.breakableRocks.length; i++) {
+      this.breakableRocks[i].update(dt, player);
+      if (!this.breakableRocks[i].isBroken) rockStillBlocking = true;
+    }
+
+    if (!this.switchActivated && !rockStillBlocking && player) {
+      const pPos = player.getPosition();
+      const dx = pPos.x - this.switchPos.x;
+      const dz = pPos.z - this.switchPos.z;
+      if (dx * dx + dz * dz < 1.15 * 1.15) {
+        this.switchActivated = true;
+        this.chestRevealed = true;
+        this.switchPlate.position.y = 0.09;
+        this.switchPlateMat.emissiveColor.set(0.15, 0.85, 0.45);
+        this.chestRoot.setEnabled(true);
+        if (cameraManager) {
+          cameraManager.shake(0.24, 0.35);
+        }
+        this.pendingNotification = {
+          speaker: 'Mécanisme Ancien',
+          text: 'La dalle s\'enfonce dans un grondement sourd ! Un coffre ancien vient d\'apparaître sur l\'Autel du Plateau Nord.'
+        };
+      }
     }
 
     // 6. Dérive douce des particules de poussière souterraine

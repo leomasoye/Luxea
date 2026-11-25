@@ -52,7 +52,7 @@ export class GameManager {
     this.collision = new CollisionManager();
     this.environment = new EnvironmentManager(this.scene);
     this.level = new LevelManager(this.scene, this.audio, this.saveData);
-    this.cave = new CaveManager(this.scene);
+    this.cave = new CaveManager(this.scene, this.saveData);
 
     // Initialisation des hitboxes (murs, falaises, arbres, buissons, panneau, portes, caverne)
     this.environment.initColliders(this.collision);
@@ -463,6 +463,11 @@ export class GameManager {
       this.level.update(dt, this.player);
     } else if (this.currentZone === 'cavern') {
       this.cave.update(dt, this.player, this.cameraManager, this.audio, this.collision);
+      const caveNotif = this.cave.consumeNotification();
+      if (caveNotif) {
+        this.openDialogue(caveNotif);
+        return;
+      }
     }
 
     // G. Mise à jour de la caméra intelligente semi-contrainte
@@ -478,10 +483,10 @@ export class GameManager {
       dt
     );
 
-    // H. Détection des interactions environnementales (Portes, Panneau, Stèle)
+    // H. Détection des interactions environnementales (Portes, Panneau, Stèle, Coffre de caverne)
     const nearest = this.currentZone === 'plaine'
       ? this.level.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
-      : null;
+      : this.cave.getNearestInteractable(this.player.getPosition(), this.player.facingAngle);
 
     if (nearest) {
       this.ui.updateInteractionPrompt(nearest.position, nearest.promptText);
@@ -521,6 +526,9 @@ export class GameManager {
   }
 
   openDialogue(interactable) {
+    if (typeof interactable.onInteract === 'function') {
+      interactable.onInteract();
+    }
     this.state = GameState.DIALOGUE;
     this.ui.hideInteractionPrompt();
 
