@@ -6,6 +6,8 @@ import {
   TransformNode
 } from '@babylonjs/core';
 import { Torch } from '../entities/Torch.js';
+import { SkeletonArcher } from '../entities/SkeletonArcher.js';
+import { CaveBat } from '../entities/CaveBat.js';
 
 /**
  * CaveManager.js — Intérieur complet de la Caverne du Gardien (Zone 2).
@@ -30,6 +32,9 @@ export class CaveManager {
 
     // Collections
     this.torches = [];
+    this.skeletons = [];
+    this.arrows = [];
+    this.bats = [];
     this.caveParticles = [];
     this.particleTime = 0;
     this.rockColliders = [];
@@ -42,11 +47,15 @@ export class CaveManager {
     this.initRaisedTerraceAndRamp();
     this.initPerimeterWalls();
     this.initInternalRockPartitions();
+    this.initWallReliefs();
     this.initStalagmitesAndBoulders();
+    this.initCrystalClusters();
     this.initAncientMonoliths();
     this.initEntranceExitCorridor();
     this.initCeiling();
     this.initTorches();
+    this.initSkeletons();
+    this.initBats();
     this.initCaveParticles();
   }
 
@@ -93,13 +102,43 @@ export class CaveManager {
     this.rockMat.maxSimultaneousLights = 8;
     this.rockMat.freeze();
 
-    // Cristaux souterrains mystiques (Recoin Sud)
+    // Cristaux souterrains mystiques — Émeraude / Turquoise
     this.crystalMat = new StandardMaterial('mat_cave_crystal', this.scene);
-    this.crystalMat.diffuseColor = new Color3(0.2, 0.8, 0.65);
-    this.crystalMat.emissiveColor = new Color3(0.1, 0.45, 0.35);
-    this.crystalMat.specularColor = new Color3(0.8, 1.0, 0.9);
+    this.crystalMat.diffuseColor = new Color3(0.18, 0.85, 0.72);
+    this.crystalMat.emissiveColor = new Color3(0.08, 0.48, 0.40);
+    this.crystalMat.specularColor = new Color3(0.85, 1.0, 0.95);
     this.crystalMat.maxSimultaneousLights = 8;
     this.crystalMat.freeze();
+
+    // Cristaux souterrains — Améthyste / Violet lumineux
+    this.crystalPurpleMat = new StandardMaterial('mat_cave_crystal_purple', this.scene);
+    this.crystalPurpleMat.diffuseColor = new Color3(0.68, 0.32, 0.92);
+    this.crystalPurpleMat.emissiveColor = new Color3(0.36, 0.14, 0.56);
+    this.crystalPurpleMat.specularColor = new Color3(0.95, 0.80, 1.0);
+    this.crystalPurpleMat.maxSimultaneousLights = 8;
+    this.crystalPurpleMat.freeze();
+
+    // Cristaux souterrains — Cyan azur
+    this.crystalBlueMat = new StandardMaterial('mat_cave_crystal_blue', this.scene);
+    this.crystalBlueMat.diffuseColor = new Color3(0.24, 0.68, 0.98);
+    this.crystalBlueMat.emissiveColor = new Color3(0.10, 0.36, 0.62);
+    this.crystalBlueMat.specularColor = new Color3(0.85, 0.95, 1.0);
+    this.crystalBlueMat.maxSimultaneousLights = 8;
+    this.crystalBlueMat.freeze();
+
+    // Reliefs rocheux sombres / strates
+    this.reliefMat = new StandardMaterial('mat_cave_relief', this.scene);
+    this.reliefMat.diffuseColor = new Color3(0.14, 0.16, 0.21);
+    this.reliefMat.specularColor = new Color3(0.03, 0.04, 0.05);
+    this.reliefMat.maxSimultaneousLights = 8;
+    this.reliefMat.freeze();
+
+    // Mousse minérale sombre au sol
+    this.mossMat = new StandardMaterial('mat_cave_moss', this.scene);
+    this.mossMat.diffuseColor = new Color3(0.10, 0.22, 0.19);
+    this.mossMat.specularColor = new Color3(0.02, 0.04, 0.03);
+    this.mossMat.maxSimultaneousLights = 8;
+    this.mossMat.freeze();
   }
 
   // --- 1. Sols principaux (Salle centrale, Vestibule, Galerie Est, Grotte Sud) à Y = 0 ---
@@ -284,6 +323,91 @@ export class CaveManager {
     createPartition('terrace_flank_e', 2.0, this.wallHeight, 13.5, 218.0, wallY, 17.25);
   }
 
+  // --- 4b. Reliefs rocheux muraux, strates, contreforts et détails de sol ---
+  initWallReliefs() {
+    const createButtress = (name, x, y, z, w, h, d, rotY = 0) => {
+      const m = MeshBuilder.CreateBox(name, { width: w, height: h, depth: d }, this.scene);
+      m.material = this.reliefMat;
+      m.position.set(x, y, z);
+      m.rotation.y = rotY;
+      m.parent = this.root;
+      m.freezeWorldMatrix();
+    };
+
+    // Contreforts et strates organiques contre les parois pour briser les lignes droites
+    const wallOutcrops = [
+      // Paroi Nord (Terrasse)
+      { x: 196.2, y: 5.5, z: 23.2, w: 3.2, h: 11.0, d: 1.6, r: 0.12 },
+      { x: 201.5, y: 6.2, z: 23.4, w: 2.8, h: 12.0, d: 1.4, r: -0.08 },
+      { x: 209.8, y: 6.0, z: 23.3, w: 3.0, h: 11.5, d: 1.5, r: 0.10 },
+      { x: 214.8, y: 5.5, z: 23.1, w: 2.6, h: 11.0, d: 1.6, r: -0.14 },
+      // Paroi Ouest (Vestibule)
+      { x: 180.6, y: 5.0, z: 6.8, w: 1.8, h: 10.0, d: 3.4, r: 0.10 },
+      { x: 180.5, y: 5.5, z: -6.5, w: 1.8, h: 11.0, d: 3.8, r: -0.12 },
+      // Paroi Est (Fond de la Crypte)
+      { x: 229.2, y: 5.5, z: 5.5, w: 1.8, h: 11.0, d: 3.6, r: 0.14 },
+      { x: 229.2, y: 5.8, z: -5.2, w: 1.8, h: 11.5, d: 3.8, r: -0.10 },
+      // Paroi Sud (Recoin des Cristaux)
+      { x: 196.5, y: 5.0, z: -22.6, w: 3.2, h: 10.0, d: 1.8, r: -0.15 },
+      { x: 209.2, y: 5.2, z: -22.6, w: 3.4, h: 10.5, d: 1.8, r: 0.12 },
+      // Crêtes rocheuses le long de la falaise de la terrasse
+      { x: 196.0, y: 0.85, z: 10.0, w: 2.4, h: 1.7, d: 1.0, r: 0.08 },
+      { x: 208.5, y: 0.85, z: 10.0, w: 3.2, h: 1.7, d: 1.0, r: -0.06 },
+      { x: 213.2, y: 0.85, z: 10.0, w: 2.6, h: 1.7, d: 1.0, r: 0.10 }
+    ];
+
+    wallOutcrops.forEach((o, idx) => {
+      createButtress(`cave_relief_${idx}`, o.x, o.y, o.z, o.w, o.h, o.d, o.r);
+    });
+
+    // Strates horizontales en corniche sur les murs hauts (effet géologique rétro)
+    const ledges = [
+      { x: 205.5, y: 8.8, z: 23.0, w: 21.0, h: 0.7, d: 1.2 },
+      { x: 228.8, y: 8.2, z: 0, w: 1.4, h: 0.7, d: 18.0 },
+      { x: 180.8, y: 8.4, z: 8.5, w: 1.3, h: 0.7, d: 9.0 },
+      { x: 180.8, y: 8.4, z: -8.0, w: 1.3, h: 0.7, d: 9.0 }
+    ];
+    ledges.forEach((l, idx) => {
+      createButtress(`cave_ledge_${idx}`, l.x, l.y, l.z, l.w, l.h, l.d, 0);
+    });
+
+    // Dalles gravées et taches de mousse minérale au sol (relief visuel non bloquant)
+    const mossPatches = [
+      { x: 188.5, y: 0.02, z: 6.2, r: 1.8 },
+      { x: 197.5, y: 0.02, z: -8.5, r: 2.1 },
+      { x: 203.0, y: 0.02, z: -18.5, r: 2.6 },
+      { x: 222.5, y: 0.02, z: 5.5, r: 1.9 },
+      { x: 205.5, y: 1.62, z: 14.2, r: 2.0 }
+    ];
+    mossPatches.forEach((m, idx) => {
+      const disc = MeshBuilder.CreateDisc(`cave_moss_${idx}`, { radius: m.r, tessellation: 7 }, this.scene);
+      disc.material = this.mossMat;
+      disc.rotation.x = Math.PI / 2;
+      disc.position.set(m.x, m.y, m.z);
+      disc.parent = this.root;
+      disc.freezeWorldMatrix();
+    });
+
+    // Petits éboulis décoratifs non bloquants au pied des murs
+    const pebbles = [
+      { x: 184.5, y: 0.16, z: 7.2, s: 0.35 },
+      { x: 191.2, y: 0.14, z: -9.8, s: 0.30 },
+      { x: 208.2, y: 0.16, z: 8.8, s: 0.32 },
+      { x: 219.5, y: 0.15, z: -8.4, s: 0.34 },
+      { x: 226.2, y: 0.16, z: -6.8, s: 0.36 },
+      { x: 197.2, y: 1.75, z: 21.8, s: 0.30 },
+      { x: 213.8, y: 1.75, z: 21.6, s: 0.32 }
+    ];
+    pebbles.forEach((p, idx) => {
+      const rock = MeshBuilder.CreateSphere(`cave_pebble_${idx}`, { diameter: p.s * 2, segments: 3 }, this.scene);
+      rock.material = this.rockMat;
+      rock.scaling.set(1.2, 0.7, 1.0);
+      rock.position.set(p.x, p.y, p.z);
+      rock.parent = this.root;
+      rock.freezeWorldMatrix();
+    });
+  }
+
   // --- 5. Stalagmites, Rochers d'obstacles & Cristaux dans les recoins ---
   initStalagmitesAndBoulders() {
     const createStalagmiteCluster = (name, x, z, baseR, h) => {
@@ -325,33 +449,86 @@ export class CaveManager {
     createBoulder('boulder_center_2', 208.5, 1.2, -3.0, 1.6, 1.5, 1.7, 1.9, 1.25);
     createStalagmiteCluster('stalag_center_1', 208.0, 3.5, 1.15, 3.9);
 
-    // 3. Cristaux magiques incrustés au fond du Recoin Secret Sud
-    const crystalPositions = [
-      { x: 198.5, y: 1.1, z: -21.5, s: 1.2, rotX: 0.2, rotZ: -0.3 },
-      { x: 206.5, y: 1.3, z: -21.8, s: 1.4, rotX: -0.1, rotZ: 0.25 },
-      { x: 202.8, y: 0.9, z: -22.5, s: 1.0, rotX: 0.3, rotZ: 0.1 }
-    ];
-
-    crystalPositions.forEach((c, idx) => {
-      const crystal = MeshBuilder.CreateCylinder(`cave_crystal_${idx}`, {
-        height: 1.8 * c.s,
-        diameterTop: 0.05,
-        diameterBottom: 0.55 * c.s,
-        tessellation: 6
-      }, this.scene);
-      crystal.material = this.crystalMat;
-      crystal.position.set(c.x, c.y, c.z);
-      crystal.rotation.x = c.rotX;
-      crystal.rotation.z = c.rotZ;
-      crystal.parent = this.root;
-      crystal.freezeWorldMatrix();
-
-      this.rockColliders.push({ type: 'circle', x: c.x, z: c.z, r: 0.55 * c.s, tag: 'crystal_cluster' });
-    });
-
-    // 4. Formations rocheuses dans la Crypte Est
+    // 3. Formations rocheuses dans la Crypte Est
     createStalagmiteCluster('stalag_east_1', 222.0, -6.5, 1.1, 4.0);
     createBoulder('boulder_east_niche', 226.5, 1.0, 8.5, 1.5, 1.3, 1.5, 2.2, 1.15);
+  }
+
+  // --- 5b. Grappes de Cristaux Souterrains Lumineux répartis dans toute la grotte ---
+  initCrystalClusters() {
+    const materials = {
+      emerald: this.crystalMat,
+      purple: this.crystalPurpleMat,
+      blue: this.crystalBlueMat
+    };
+
+    const createCluster = (id, x, baseY, z, scale, colorKey, hasCollider = true) => {
+      const mat = materials[colorKey] || this.crystalMat;
+      const clusterNode = new TransformNode(`crystal_cluster_${id}`, this.scene);
+      clusterNode.position.set(x, baseY, z);
+      clusterNode.parent = this.root;
+
+      // 4 prismes cristallins inclinés de hauteurs variées pour un rendu riche et naturel
+      const shards = [
+        { ox: 0, oz: 0, h: 2.1, r: 0.34, rx: 0.08, rz: -0.06 },
+        { ox: 0.32, oz: 0.18, h: 1.45, r: 0.24, rx: 0.26, rz: -0.32 },
+        { ox: -0.28, oz: 0.22, h: 1.25, r: 0.22, rx: -0.22, rz: 0.30 },
+        { ox: 0.08, oz: -0.30, h: 1.05, r: 0.20, rx: -0.34, rz: -0.14 }
+      ];
+
+      shards.forEach((sh, sIdx) => {
+        const prism = MeshBuilder.CreateCylinder(`cave_crystal_${id}_${sIdx}`, {
+          height: sh.h * scale,
+          diameterTop: 0.03,
+          diameterBottom: sh.r * 2.0 * scale,
+          tessellation: 6
+        }, this.scene);
+        prism.material = mat;
+        prism.position.set(sh.ox * scale, (sh.h * scale) * 0.42, sh.oz * scale);
+        prism.rotation.x = sh.rx;
+        prism.rotation.z = sh.rz;
+        prism.parent = clusterNode;
+        prism.freezeWorldMatrix();
+      });
+
+      clusterNode.freezeWorldMatrix();
+
+      if (hasCollider) {
+        this.rockColliders.push({
+          type: 'circle',
+          x,
+          z,
+          r: 0.62 * scale,
+          tag: 'crystal_cluster'
+        });
+      }
+    };
+
+    // 1. Sanctuaire des Cristaux — Recoin Secret Sud (très riche)
+    createCluster('south_1', 197.5, 0, -21.2, 1.25, 'emerald');
+    createCluster('south_2', 202.8, 0, -22.2, 1.40, 'blue');
+    createCluster('south_3', 207.8, 0, -21.4, 1.30, 'purple');
+    createCluster('south_4', 195.8, 0, -17.0, 0.95, 'blue');
+    createCluster('south_5', 210.2, 0, -17.5, 1.05, 'emerald');
+
+    // 2. Vestibule & Salle Centrale (points de repère visuels lumineux)
+    createCluster('west_n', 183.2, 0, 8.2, 1.05, 'blue');
+    createCluster('west_s', 183.8, 0, -8.8, 0.95, 'emerald');
+    createCluster('center_ramp_l', 198.2, 0, 8.6, 0.90, 'purple');
+    createCluster('center_ramp_r', 205.8, 0, 8.6, 0.90, 'purple');
+    createCluster('center_se', 211.8, 0, -9.8, 1.10, 'emerald');
+
+    // 3. Plateau Nord Surélevé (encadrant l'Autel monolithique)
+    createCluster('terrace_w', 195.8, 1.6, 12.2, 0.95, 'blue');
+    createCluster('terrace_e', 215.2, 1.6, 12.2, 0.95, 'blue');
+    createCluster('altar_l', 202.2, 1.6, 21.8, 1.15, 'purple');
+    createCluster('altar_r', 208.8, 1.6, 21.8, 1.15, 'purple');
+
+    // 4. Crypte & Galerie Est
+    createCluster('east_n', 220.5, 0, 8.8, 1.05, 'emerald');
+    createCluster('east_s', 227.6, 0, -8.2, 1.20, 'purple');
+    createCluster('east_back_n', 228.5, 0, 4.2, 1.00, 'blue');
+    createCluster('east_back_s', 228.5, 0, -3.8, 1.00, 'emerald');
   }
 
   // --- 6. Piliers antiques & Autel monolithique sur la terrasse ---
@@ -461,6 +638,33 @@ export class CaveManager {
     ceiling.position.set(205, this.wallHeight, 0);
     ceiling.parent = this.root;
     ceiling.freezeWorldMatrix();
+
+    // Stalactites suspendues au plafond pour donner du relief vertical et de la profondeur
+    const stalactites = [
+      { x: 187.5, z: 5.0, r: 0.75, h: 3.4 },
+      { x: 193.0, z: -4.5, r: 0.90, h: 4.1 },
+      { x: 199.5, z: 2.0, r: 0.85, h: 3.8 },
+      { x: 206.5, z: -6.0, r: 0.80, h: 3.6 },
+      { x: 211.0, z: 4.5, r: 0.70, h: 3.2 },
+      { x: 200.0, z: 16.5, r: 0.85, h: 3.5 },
+      { x: 211.5, z: 18.0, r: 0.75, h: 3.1 },
+      { x: 202.5, z: -17.5, r: 0.80, h: 3.7 },
+      { x: 221.5, z: 3.0, r: 0.85, h: 3.9 },
+      { x: 225.0, z: -4.5, r: 0.75, h: 3.3 }
+    ];
+
+    stalactites.forEach((st, idx) => {
+      const cone = MeshBuilder.CreateCylinder(`cave_stalactite_${idx}`, {
+        height: st.h,
+        diameterTop: st.r * 2.0,
+        diameterBottom: 0.05,
+        tessellation: 6
+      }, this.scene);
+      cone.material = this.rockMat;
+      cone.position.set(st.x, this.wallHeight - st.h / 2, st.z);
+      cone.parent = this.root;
+      cone.freezeWorldMatrix();
+    });
   }
 
   // --- 9. Implantation des 7 Torches / Braseros dans tous les recoins ---
@@ -496,6 +700,79 @@ export class CaveManager {
         lightIntensity: 4.8
       });
       this.torches.push(torch);
+    });
+  }
+
+  // --- 9b. Implantation des 3 Squelettes Archers répartis dans la grotte ---
+  initSkeletons() {
+    const getH = (x, z) => this.getGroundHeight(x, z);
+
+    const skeletonConfigs = [
+      // 1. Salle Centrale (garde l'accès vers la rampe et la galerie Est)
+      {
+        id: 'center',
+        x: 207.5,
+        z: -6.5,
+        facingAngle: -Math.PI * 0.65,
+        leashRadius: 8.5,
+        waypoints: [
+          { x: 207.5, z: -6.5 },
+          { x: 204.5, z: -2.0 },
+          { x: 210.5, z: -5.5 }
+        ]
+      },
+      // 2. Plateau Nord Surélevé (garde l'autel ancien)
+      {
+        id: 'terrace',
+        x: 205.5,
+        z: 16.5,
+        facingAngle: Math.PI,
+        leashRadius: 7.5,
+        waypoints: [
+          { x: 201.0, z: 16.0 },
+          { x: 210.0, z: 16.0 },
+          { x: 205.5, z: 14.0 }
+        ]
+      },
+      // 3. Crypte Est (garde la chambre du fond)
+      {
+        id: 'crypt',
+        x: 223.8,
+        z: -2.0,
+        facingAngle: -Math.PI / 2,
+        leashRadius: 7.5,
+        waypoints: [
+          { x: 223.8, z: -2.0 },
+          { x: 223.5, z: 3.5 },
+          { x: 226.0, z: -3.5 }
+        ]
+      }
+    ];
+
+    skeletonConfigs.forEach(cfg => {
+      const skel = new SkeletonArcher(this.scene, this.root, cfg, getH);
+      this.skeletons.push(skel);
+    });
+  }
+
+  // --- 9c. Chauves-souris inoffensives et visuelles dans plusieurs recoins ---
+  initBats() {
+    const batConfigs = [
+      // Salle Centrale (en hauteur)
+      { id: 'c1', x: 196.0, y: 6.2, z: 1.5, radiusX: 3.8, radiusZ: 2.6, speed: 0.95, figureEight: true },
+      { id: 'c2', x: 205.0, y: 7.1, z: -4.0, radiusX: 3.2, radiusZ: 2.8, speed: 1.10, figureEight: false },
+      // Sanctuaire Sud (au-dessus des cristaux)
+      { id: 's1', x: 202.5, y: 5.6, z: -18.0, radiusX: 3.0, radiusZ: 2.0, speed: 1.05, figureEight: true },
+      { id: 's2', x: 204.0, y: 6.4, z: -17.0, radiusX: 2.4, radiusZ: 1.8, speed: 0.85, figureEight: false },
+      // Plateau Nord (haut sous les stalactites)
+      { id: 'n1', x: 205.5, y: 7.8, z: 16.5, radiusX: 3.6, radiusZ: 2.2, speed: 0.90, figureEight: true },
+      // Crypte Est
+      { id: 'e1', x: 223.0, y: 6.0, z: 1.0, radiusX: 2.8, radiusZ: 3.2, speed: 1.15, figureEight: true }
+    ];
+
+    batConfigs.forEach(cfg => {
+      const bat = new CaveBat(this.scene, this.root, cfg.x, cfg.y, cfg.z, cfg.id, cfg);
+      this.bats.push(bat);
     });
   }
 
@@ -610,10 +887,20 @@ export class CaveManager {
     this.torches.forEach(t => {
       t.initColliders(collisionManager);
     });
+
+    // 6. Collisions dynamiques des Squelettes Archers vivants
+    collisionManager.addDynamicSource(() => {
+      const list = [];
+      for (let i = 0; i < this.skeletons.length; i++) {
+        const col = this.skeletons[i].getCollider();
+        if (col) list.push(col);
+      }
+      return list;
+    }, 'cavern');
   }
 
   /**
-   * Vérifie les frappes à l'épée contre les torches de la caverne.
+   * Vérifie les frappes à l'épée contre les torches, les squelettes et les flèches en vol.
    */
   checkSwordHits(playerPos, playerFacingAngle, weapon, cameraManager = null, audioManager = null) {
     let anyHit = false;
@@ -621,6 +908,28 @@ export class CaveManager {
       const hit = this.torches[i].checkSwordHit(playerPos, playerFacingAngle, weapon, cameraManager, audioManager);
       if (hit) anyHit = true;
     }
+
+    // Frappes sur les Squelettes Archers (meurent en 2 coups)
+    for (let i = 0; i < this.skeletons.length; i++) {
+      const hit = this.skeletons[i].checkSwordHit(playerPos, playerFacingAngle, weapon, cameraManager);
+      if (hit) {
+        anyHit = true;
+        if (audioManager && typeof audioManager.playHurt === 'function') {
+          audioManager.playHurt();
+        }
+      }
+    }
+
+    // Possibilité de dévier/trancher une flèche en plein vol avec l'épée
+    for (let i = this.arrows.length - 1; i >= 0; i--) {
+      const arrow = this.arrows[i];
+      if (!arrow.isAlive) continue;
+      if (weapon.checkHit(playerPos, playerFacingAngle, arrow.position, 0.55)) {
+        arrow.destroy(true);
+        anyHit = true;
+      }
+    }
+
     return anyHit;
   }
 
@@ -654,9 +963,26 @@ export class CaveManager {
     };
   }
 
+  clearArrows() {
+    for (let i = 0; i < this.arrows.length; i++) {
+      this.arrows[i].dispose();
+    }
+    this.arrows = [];
+  }
+
+  resetEnemies() {
+    this.clearArrows();
+    for (let i = 0; i < this.skeletons.length; i++) {
+      this.skeletons[i].reset();
+    }
+  }
+
   setEnabled(enabled) {
     if (this.root) {
       this.root.setEnabled(enabled);
+    }
+    if (!enabled) {
+      this.clearArrows();
     }
     // Désactiver également les lumières ponctuelles des torches si la caverne est masquée
     this.torches.forEach(t => {
@@ -667,9 +993,9 @@ export class CaveManager {
   }
 
   /**
-   * Boucle de mise à jour de la caverne (torches, particules ambiantes).
+   * Boucle de mise à jour de la caverne (torches, squelettes, flèches, chauves-souris, particules).
    */
-  update(dt, player, cameraManager = null, audioManager = null) {
+  update(dt, player, cameraManager = null, audioManager = null, collisionManager = null) {
     if (!this.root.isEnabled()) return;
 
     // 1. Mise à jour des 7 torches
@@ -682,7 +1008,28 @@ export class CaveManager {
       this.checkTorchProximity(player.getPosition(), player.isTorchMode, cameraManager, audioManager);
     }
 
-    // 3. Dérive douce des particules de poussière souterraine
+    // 3. Mise à jour des 3 Squelettes Archers
+    for (let i = 0; i < this.skeletons.length; i++) {
+      this.skeletons[i].update(dt, player, collisionManager, (arrow) => {
+        this.arrows.push(arrow);
+      });
+    }
+
+    // 4. Mise à jour des flèches actives
+    for (let i = this.arrows.length - 1; i >= 0; i--) {
+      const arrow = this.arrows[i];
+      arrow.update(dt, player, collisionManager);
+      if (!arrow.isAlive) {
+        this.arrows.splice(i, 1);
+      }
+    }
+
+    // 5. Mise à jour des chauves-souris inoffensives
+    for (let i = 0; i < this.bats.length; i++) {
+      this.bats[i].update(dt);
+    }
+
+    // 6. Dérive douce des particules de poussière souterraine
     this.particleTime += dt;
     for (let i = 0; i < this.caveParticles.length; i++) {
       const p = this.caveParticles[i];
@@ -700,6 +1047,11 @@ export class CaveManager {
   }
 
   dispose() {
+    this.clearArrows();
+    this.skeletons.forEach(s => s.dispose());
+    this.skeletons = [];
+    this.bats.forEach(b => b.dispose());
+    this.bats = [];
     this.torches.forEach(t => t.dispose());
     this.torches = [];
     if (this.root) {

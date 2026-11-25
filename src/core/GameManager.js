@@ -232,6 +232,7 @@ export class GameManager {
   respawnPlayer() {
     if (this.currentZone === 'cavern') {
       // Réapparition à l'entrée de la Caverne (cadrage 3/4 vers l'intérieur)
+      this.cave.resetEnemies();
       this.player.reset(185.0, 0, 0);
       this.player.facingAngle = Math.PI / 2;
       this.player.targetFacingAngle = Math.PI / 2;
@@ -461,7 +462,7 @@ export class GameManager {
     if (this.currentZone === 'plaine') {
       this.level.update(dt, this.player);
     } else if (this.currentZone === 'cavern') {
-      this.cave.update(dt, this.player, this.cameraManager, this.audio);
+      this.cave.update(dt, this.player, this.cameraManager, this.audio, this.collision);
     }
 
     // G. Mise à jour de la caméra intelligente semi-contrainte
