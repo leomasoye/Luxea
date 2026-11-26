@@ -11,6 +11,7 @@ import { CaveBat } from '../entities/CaveBat.js';
 import { HazardCrystal } from '../entities/HazardCrystal.js';
 import { BreakableRock } from '../entities/BreakableRock.js';
 import { SaveManager } from '../core/SaveManager.js';
+import { RetroTextures } from '../rendering/RetroTextures.js';
 
 /**
  * CaveManager.js — Intérieur complet de la Caverne du Gardien (Zone 2).
@@ -75,9 +76,10 @@ export class CaveManager {
   }
 
   initMaterials() {
-    // Sol de pierre sombre (léger emissiveColor pour éviter toute face noir pur hors cône de torche)
+    // Sol de pierre sombre (texture dalles donjon pixel-art)
     this.floorMat = new StandardMaterial('mat_cave_floor', this.scene);
-    this.floorMat.diffuseColor = new Color3(0.16, 0.19, 0.24);
+    this.floorMat.diffuseColor = new Color3(0.20, 0.24, 0.30);
+    this.floorMat.diffuseTexture = RetroTextures.get(this.scene, 'caveFloor', 14, 10);
     this.floorMat.emissiveColor = new Color3(0.03, 0.035, 0.05);
     this.floorMat.specularColor = new Color3(0.04, 0.05, 0.07);
     this.floorMat.maxSimultaneousLights = 12;
@@ -85,7 +87,8 @@ export class CaveManager {
 
     // Dalles centrales pavées (allée usée)
     this.pavingMat = new StandardMaterial('mat_cave_paving', this.scene);
-    this.pavingMat.diffuseColor = new Color3(0.21, 0.24, 0.30);
+    this.pavingMat.diffuseColor = new Color3(0.25, 0.29, 0.36);
+    this.pavingMat.diffuseTexture = RetroTextures.get(this.scene, 'caveFloor', 16, 2);
     this.pavingMat.emissiveColor = new Color3(0.035, 0.04, 0.055);
     this.pavingMat.specularColor = new Color3(0.06, 0.07, 0.09);
     this.pavingMat.maxSimultaneousLights = 12;
@@ -93,7 +96,8 @@ export class CaveManager {
 
     // Sol de la terrasse surélevée Nord
     this.terraceFloorMat = new StandardMaterial('mat_terrace_floor', this.scene);
-    this.terraceFloorMat.diffuseColor = new Color3(0.18, 0.21, 0.27);
+    this.terraceFloorMat.diffuseColor = new Color3(0.22, 0.26, 0.33);
+    this.terraceFloorMat.diffuseTexture = RetroTextures.get(this.scene, 'caveFloor', 10, 6);
     this.terraceFloorMat.emissiveColor = new Color3(0.03, 0.035, 0.05);
     this.terraceFloorMat.specularColor = new Color3(0.05, 0.06, 0.08);
     this.terraceFloorMat.maxSimultaneousLights = 12;
@@ -101,7 +105,8 @@ export class CaveManager {
 
     // Parois rocheuses périmétriques
     this.wallMat = new StandardMaterial('mat_cave_wall', this.scene);
-    this.wallMat.diffuseColor = new Color3(0.21, 0.24, 0.31);
+    this.wallMat.diffuseColor = new Color3(0.25, 0.29, 0.37);
+    this.wallMat.diffuseTexture = RetroTextures.get(this.scene, 'caveWall', 8, 4);
     this.wallMat.emissiveColor = new Color3(0.032, 0.038, 0.055);
     this.wallMat.specularColor = new Color3(0.03, 0.04, 0.05);
     this.wallMat.maxSimultaneousLights = 12;
@@ -109,7 +114,8 @@ export class CaveManager {
 
     // Falaise / Muret de soutènement de la terrasse
     this.cliffMat = new StandardMaterial('mat_cave_cliff', this.scene);
-    this.cliffMat.diffuseColor = new Color3(0.24, 0.27, 0.34);
+    this.cliffMat.diffuseColor = new Color3(0.28, 0.32, 0.40);
+    this.cliffMat.diffuseTexture = RetroTextures.get(this.scene, 'caveWall', 6, 2);
     this.cliffMat.emissiveColor = new Color3(0.035, 0.04, 0.055);
     this.cliffMat.specularColor = new Color3(0.04, 0.05, 0.07);
     this.cliffMat.maxSimultaneousLights = 12;
@@ -117,7 +123,8 @@ export class CaveManager {
 
     // Stalagmites et formations rocheuses brutes
     this.rockMat = new StandardMaterial('mat_cave_rock', this.scene);
-    this.rockMat.diffuseColor = new Color3(0.18, 0.20, 0.26);
+    this.rockMat.diffuseColor = new Color3(0.22, 0.25, 0.32);
+    this.rockMat.diffuseTexture = RetroTextures.get(this.scene, 'cliff', 2, 2);
     this.rockMat.emissiveColor = new Color3(0.028, 0.032, 0.046);
     this.rockMat.specularColor = new Color3(0.03, 0.04, 0.05);
     this.rockMat.maxSimultaneousLights = 12;

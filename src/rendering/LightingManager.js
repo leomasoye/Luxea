@@ -4,7 +4,9 @@ import {
   PointLight,
   Color3,
   Vector3,
-  GlowLayer
+  GlowLayer,
+  Effect,
+  PostProcess
 } from '@babylonjs/core';
 
 /**
@@ -59,12 +61,12 @@ export class LightingManager {
     this.sunLight.specular = new Color3(0.18, 0.18, 0.22);
     this.sunLight.intensity = 0.35;
 
-    // 3. GlowLayer rétro valorisant les lueurs dans la pénombre
+    // 3. GlowLayer rétro léger (subtil pour ne pas créer de flou moderne excessif)
     this.glowLayer = new GlowLayer('retroGlow', this.scene, {
-      mainTextureRatio: 0.5,
-      blurKernelSize: 16
+      mainTextureRatio: 0.35,
+      blurKernelSize: 10
     });
-    this.glowLayer.intensity = 0.95;
+    this.glowLayer.intensity = 0.45;
 
     // 4. PointLight dynamique de l'ÉPÉE (Source majeure de clarté et de jeu)
     this.swordLight = new PointLight(
@@ -177,5 +179,74 @@ export class LightingManager {
 
     this.swordLight.intensity = Math.max(0.05, this.currentIntensity);
     this.swordLight.range = Math.max(1.0, this.currentRange);
+  }
+
+  /**
+   * Attache le post-process PS1/N64 (quantification de couleurs + dithering ordonné Bayer 4x4) à la caméra.
+   */
+  attachRetroPostProcess(camera) {
+    if (!camera) return;
+
+    if (!Effect.ShadersStore['retroDitherFragmentShader']) {
+      Effect.ShadersStore['retroDitherFragmentShader'] = `
+        precision highp float;
+        varying vec2 vUV;
+        uniform sampler2D textureSampler;
+        uniform vec2 screenSize;
+        uniform float enabled;
+
+        float bayer4x4(vec2 p) {
+          int x = int(mod(p.x, 4.0));
+          int y = int(mod(p.y, 4.0));
+          int idx = y * 4 + x;
+          if (idx == 0) return 0.0 / 16.0;
+          if (idx == 1) return 8.0 / 16.0;
+          if (idx == 2) return 2.0 / 16.0;
+          if (idx == 3) return 10.0 / 16.0;
+          if (idx == 4) return 12.0 / 16.0;
+          if (idx == 5) return 4.0 / 16.0;
+          if (idx == 6) return 14.0 / 16.0;
+          if (idx == 7) return 6.0 / 16.0;
+          if (idx == 8) return 3.0 / 16.0;
+          if (idx == 9) return 11.0 / 16.0;
+          if (idx == 10) return 1.0 / 16.0;
+          if (idx == 11) return 9.0 / 16.0;
+          if (idx == 12) return 15.0 / 16.0;
+          if (idx == 13) return 7.0 / 16.0;
+          if (idx == 14) return 13.0 / 16.0;
+          return 5.0 / 16.0;
+        }
+
+        void main(void) {
+          vec4 col = texture2D(textureSampler, vUV);
+          if (enabled < 0.5) {
+            gl_FragColor = col;
+            return;
+          }
+          // Dithering Bayer 4x4 + quantification 24 niveaux/canal (palette 15/16-bit rétro PS1)
+          float dither = (bayer4x4(gl_FragCoord.xy) - 0.5) * (1.0 / 26.0);
+          vec3 q = floor((col.rgb + dither) * 24.0 + 0.5) / 24.0;
+          gl_FragColor = vec4(clamp(q, 0.0, 1.0), col.a);
+        }
+      `;
+    }
+
+    this.retroEnabled = true;
+    this.retroPostProcess = new PostProcess(
+      'retroDither',
+      'retroDither',
+      ['screenSize', 'enabled'],
+      null,
+      1.0,
+      camera
+    );
+    this.retroPostProcess.onApply = (effect) => {
+      effect.setFloat2('screenSize', this.retroPostProcess.width, this.retroPostProcess.height);
+      effect.setFloat('enabled', this.retroEnabled ? 1.0 : 0.0);
+    };
+  }
+
+  setRetroEnabled(enabled) {
+    this.retroEnabled = !!enabled;
   }
 }

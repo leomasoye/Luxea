@@ -13,15 +13,15 @@ window.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Création du moteur Babylon.js avec antialiasing et stencil buffer
-  const engine = new Engine(canvas, true, {
+  // Création du moteur Babylon.js sans antialiasing pour un rendu rétrogaming net (PS1 / N64 / DS)
+  const engine = new Engine(canvas, false, {
     preserveDrawingBuffer: false,
     stencil: true,
-    adaptToDeviceRatio: true
+    adaptToDeviceRatio: false
   });
 
-  // Forcer le scaling pour des performances parfaites (60 FPS garantis)
-  engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, 2));
+  // Résolution interne rétro (pixel-art 3D net + 60 FPS garantis)
+  engine.setHardwareScalingLevel(2.25);
 
   // Instanciation et amorçage du gestionnaire de jeu
   const game = new GameManager(engine, canvas);

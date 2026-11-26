@@ -6,6 +6,7 @@ import {
   TransformNode,
   PointLight
 } from '@babylonjs/core';
+import { RetroTextures } from '../rendering/RetroTextures.js';
 
 /**
  * ForestManager.js — La Forêt Sacrée / Bois Korogu (Zone 3, derrière la Grille Ouest).
@@ -52,33 +53,38 @@ export class ForestManager {
   }
 
   initMaterials() {
-    // Sol principal de la forêt (mousse émeraude riche)
+    // Sol principal de la forêt (mousse émeraude riche pixel-art)
     this.groundMat = new StandardMaterial('mat_forest_ground', this.scene);
-    this.groundMat.diffuseColor = new Color3(0.16, 0.42, 0.20);
+    this.groundMat.diffuseColor = new Color3(0.20, 0.48, 0.24);
+    this.groundMat.diffuseTexture = RetroTextures.get(this.scene, 'grass', 42, 42);
     this.groundMat.specularColor = new Color3(0.03, 0.05, 0.03);
     this.groundMat.freeze();
 
     // Herbe lumineuse de la clairière centrale
     this.clearingMat = new StandardMaterial('mat_forest_clearing', this.scene);
-    this.clearingMat.diffuseColor = new Color3(0.24, 0.56, 0.25);
+    this.clearingMat.diffuseColor = new Color3(0.28, 0.62, 0.29);
+    this.clearingMat.diffuseTexture = RetroTextures.get(this.scene, 'grass', 14, 14);
     this.clearingMat.specularColor = new Color3(0.04, 0.07, 0.04);
     this.clearingMat.freeze();
 
     // Sentier de terre forestière douce
     this.pathMat = new StandardMaterial('mat_forest_path', this.scene);
-    this.pathMat.diffuseColor = new Color3(0.50, 0.40, 0.27);
+    this.pathMat.diffuseColor = new Color3(0.56, 0.45, 0.31);
+    this.pathMat.diffuseTexture = RetroTextures.get(this.scene, 'dirt', 10, 2);
     this.pathMat.specularColor = new Color3(0.02, 0.02, 0.02);
     this.pathMat.freeze();
 
     // Dalles de pierre ancienne moussue
     this.stoneMat = new StandardMaterial('mat_forest_stone', this.scene);
-    this.stoneMat.diffuseColor = new Color3(0.46, 0.49, 0.46);
+    this.stoneMat.diffuseColor = new Color3(0.52, 0.56, 0.52);
+    this.stoneMat.diffuseTexture = RetroTextures.get(this.scene, 'stone', 2, 2);
     this.stoneMat.specularColor = new Color3(0.08, 0.09, 0.08);
     this.stoneMat.freeze();
 
     // Pierre sculptée claire pour le Socle de l'Épée Légendaire
     this.pedestalStoneMat = new StandardMaterial('mat_pedestal_stone', this.scene);
-    this.pedestalStoneMat.diffuseColor = new Color3(0.68, 0.70, 0.66);
+    this.pedestalStoneMat.diffuseColor = new Color3(0.74, 0.76, 0.72);
+    this.pedestalStoneMat.diffuseTexture = RetroTextures.get(this.scene, 'stone', 2, 2);
     this.pedestalStoneMat.emissiveColor = new Color3(0.05, 0.06, 0.05);
     this.pedestalStoneMat.specularColor = new Color3(0.15, 0.16, 0.15);
     this.pedestalStoneMat.freeze();
@@ -99,47 +105,55 @@ export class ForestManager {
 
     // Écorce ancienne de l'Arbre Sacré
     this.greatBarkMat = new StandardMaterial('mat_great_tree_bark', this.scene);
-    this.greatBarkMat.diffuseColor = new Color3(0.36, 0.23, 0.14);
+    this.greatBarkMat.diffuseColor = new Color3(0.42, 0.28, 0.17);
+    this.greatBarkMat.diffuseTexture = RetroTextures.get(this.scene, 'bark', 6, 4);
     this.greatBarkMat.specularColor = new Color3(0.04, 0.03, 0.02);
     this.greatBarkMat.freeze();
 
     // Écorce sombre des arbres de la forêt
     this.barkMat = new StandardMaterial('mat_forest_bark', this.scene);
-    this.barkMat.diffuseColor = new Color3(0.32, 0.20, 0.12);
+    this.barkMat.diffuseColor = new Color3(0.38, 0.24, 0.15);
+    this.barkMat.diffuseTexture = RetroTextures.get(this.scene, 'bark', 2, 2);
     this.barkMat.specularColor = new Color3(0.03, 0.02, 0.01);
     this.barkMat.freeze();
 
     // Écorce claire (bouleau / bois ancien)
     this.paleBarkMat = new StandardMaterial('mat_forest_pale_bark', this.scene);
-    this.paleBarkMat.diffuseColor = new Color3(0.54, 0.48, 0.40);
+    this.paleBarkMat.diffuseColor = new Color3(0.60, 0.54, 0.46);
+    this.paleBarkMat.diffuseTexture = RetroTextures.get(this.scene, 'bark', 2, 2);
     this.paleBarkMat.specularColor = new Color3(0.04, 0.04, 0.04);
     this.paleBarkMat.freeze();
 
-    // Feuillages variés (palette Korogu : émeraude, vert tendre, vert doré, sarcelle, fleurs de cerisier)
+    // Feuillages variés (palette Korogu pixel-art)
     this.foliageDeepMat = new StandardMaterial('mat_forest_foliage_deep', this.scene);
-    this.foliageDeepMat.diffuseColor = new Color3(0.09, 0.36, 0.18);
+    this.foliageDeepMat.diffuseColor = new Color3(0.12, 0.42, 0.22);
+    this.foliageDeepMat.diffuseTexture = RetroTextures.get(this.scene, 'foliage', 3, 3);
     this.foliageDeepMat.specularColor = new Color3(0.03, 0.05, 0.03);
     this.foliageDeepMat.freeze();
 
     this.foliageEmeraldMat = new StandardMaterial('mat_forest_foliage_emerald', this.scene);
-    this.foliageEmeraldMat.diffuseColor = new Color3(0.15, 0.50, 0.24);
+    this.foliageEmeraldMat.diffuseColor = new Color3(0.19, 0.56, 0.28);
+    this.foliageEmeraldMat.diffuseTexture = RetroTextures.get(this.scene, 'foliage', 3, 3);
     this.foliageEmeraldMat.specularColor = new Color3(0.04, 0.07, 0.04);
     this.foliageEmeraldMat.freeze();
 
     this.foliageSunlitMat = new StandardMaterial('mat_forest_foliage_sunlit', this.scene);
-    this.foliageSunlitMat.diffuseColor = new Color3(0.34, 0.66, 0.26);
+    this.foliageSunlitMat.diffuseColor = new Color3(0.38, 0.72, 0.30);
+    this.foliageSunlitMat.diffuseTexture = RetroTextures.get(this.scene, 'foliage', 3, 3);
     this.foliageSunlitMat.emissiveColor = new Color3(0.04, 0.09, 0.02);
     this.foliageSunlitMat.specularColor = new Color3(0.06, 0.09, 0.04);
     this.foliageSunlitMat.freeze();
 
     this.foliageGoldMat = new StandardMaterial('mat_forest_foliage_gold', this.scene);
-    this.foliageGoldMat.diffuseColor = new Color3(0.76, 0.62, 0.18);
+    this.foliageGoldMat.diffuseColor = new Color3(0.84, 0.68, 0.22);
+    this.foliageGoldMat.diffuseTexture = RetroTextures.get(this.scene, 'foliage', 3, 3);
     this.foliageGoldMat.emissiveColor = new Color3(0.08, 0.06, 0.01);
     this.foliageGoldMat.specularColor = new Color3(0.08, 0.06, 0.02);
     this.foliageGoldMat.freeze();
 
     this.blossomMat = new StandardMaterial('mat_forest_blossom', this.scene);
-    this.blossomMat.diffuseColor = new Color3(0.96, 0.72, 0.80);
+    this.blossomMat.diffuseColor = new Color3(0.98, 0.76, 0.84);
+    this.blossomMat.diffuseTexture = RetroTextures.get(this.scene, 'foliage', 3, 3);
     this.blossomMat.emissiveColor = new Color3(0.22, 0.10, 0.14);
     this.blossomMat.specularColor = new Color3(0.1, 0.08, 0.09);
     this.blossomMat.freeze();
@@ -179,9 +193,10 @@ export class ForestManager {
     this.sacredFlowerMat.emissiveColor = new Color3(0.30, 0.52, 0.68);
     this.sacredFlowerMat.freeze();
 
-    // Eau cristalline de l'étang forestier
+    // Eau cristalline de l'étang forestier (pixel-art)
     this.waterMat = new StandardMaterial('mat_forest_water', this.scene);
-    this.waterMat.diffuseColor = new Color3(0.14, 0.64, 0.68);
+    this.waterMat.diffuseColor = new Color3(0.18, 0.70, 0.74);
+    this.waterMat.diffuseTexture = RetroTextures.get(this.scene, 'water', 6, 6);
     this.waterMat.emissiveColor = new Color3(0.05, 0.24, 0.28);
     this.waterMat.specularColor = new Color3(0.6, 0.9, 0.95);
     this.waterMat.alpha = 0.86;

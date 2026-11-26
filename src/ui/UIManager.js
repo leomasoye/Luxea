@@ -38,9 +38,12 @@ export class UIManager {
     this.titleMenuItems = Array.from(document.querySelectorAll('.btn-title-item'));
 
     this.settingsModal = document.getElementById('settings-modal');
+    this.btnSettingsRetro = document.getElementById('btn-settings-retro');
+    this.btnSettingsCrt = document.getElementById('btn-settings-crt');
     this.btnSettingsAudio = document.getElementById('btn-settings-audio');
     this.btnResetSave = document.getElementById('btn-reset-save');
     this.btnSettingsBack = document.getElementById('btn-settings-back');
+    this.retroCrtOverlay = document.getElementById('retro-crt-overlay');
 
     this.quitModal = document.getElementById('quit-modal');
     this.btnQuitConfirm = document.getElementById('btn-quit-confirm');
@@ -252,8 +255,8 @@ export class UIManager {
       return;
     }
 
-    // Conversion coordonnées réelles écran en tenant compte du devicePixelRatio
-    const scale = engine.getHardwareScalingLevel ? 1 / engine.getHardwareScalingLevel() : 1;
+    // Conversion coordonnées réelles écran (renderWidth = clientWidth / hardwareScalingLevel)
+    const scale = engine.getHardwareScalingLevel ? engine.getHardwareScalingLevel() : 1;
     const x = projected.x * scale;
     const y = (projected.y * scale) - 35; // Décalage de 35px vers le haut de l'objet
 
@@ -379,6 +382,18 @@ export class UIManager {
     if (this.btnPauseSound) this.btnPauseSound.innerHTML = html;
   }
 
+  updateRetroButtons(retroEnabled, crtEnabled) {
+    if (this.btnSettingsRetro) {
+      this.btnSettingsRetro.innerHTML = `<span class="cursor-arrow">►</span> MODE RETRO : ${retroEnabled ? 'ACTIVE' : 'HD'}`;
+    }
+    if (this.btnSettingsCrt) {
+      this.btnSettingsCrt.innerHTML = `<span class="cursor-arrow">►</span> SCANLINES CRT : ${crtEnabled ? 'ACTIVE' : 'DESACTIVE'}`;
+    }
+    if (this.retroCrtOverlay) {
+      this.retroCrtOverlay.classList.toggle('hidden', !crtEnabled);
+    }
+  }
+
   updateDevStats(fps) {
     if (this.devStats) {
       this.devStats.textContent = `${Math.round(fps)} FPS`;
@@ -386,30 +401,30 @@ export class UIManager {
   }
 
   /**
-   * Déclenche un fondu sombre progressif (fade to black) pour les transitions de zones.
+   * Déclenche un fondu sombre rétro par paliers (4-steps SNES/GBA) pour les transitions de zones.
    */
-  fadeToBlack(duration = 380) {
+  fadeToBlack(duration = 360) {
     return new Promise((resolve) => {
       if (!this.screenFade) {
         resolve();
         return;
       }
-      this.screenFade.style.transition = `opacity ${duration}ms ease-in-out`;
+      this.screenFade.style.transition = `opacity ${duration}ms steps(4, end)`;
       this.screenFade.classList.add('active');
       setTimeout(resolve, duration);
     });
   }
 
   /**
-   * Déclenche la réapparition progressive de l'image (fade from black).
+   * Déclenche la réapparition rétro par paliers (4-steps SNES/GBA).
    */
-  fadeFromBlack(duration = 380) {
+  fadeFromBlack(duration = 360) {
     return new Promise((resolve) => {
       if (!this.screenFade) {
         resolve();
         return;
       }
-      this.screenFade.style.transition = `opacity ${duration}ms ease-in-out`;
+      this.screenFade.style.transition = `opacity ${duration}ms steps(4, end)`;
       this.screenFade.classList.remove('active');
       setTimeout(resolve, duration);
     });

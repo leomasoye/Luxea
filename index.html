@@ -351,7 +351,7 @@
       50%, 100% { opacity: 0; }
     }
 
-    /* Screen Fade Transition (Fondu sombre fluide entre zones) */
+    /* Screen Fade Transition (Fondu rétro par paliers 4-steps SNES/GBA) */
     #screen-fade {
       position: fixed;
       top: 0;
@@ -362,12 +362,40 @@
       opacity: 0;
       pointer-events: none;
       z-index: 999;
-      transition: opacity 0.38s ease-in-out;
+      transition: opacity 0.36s steps(4, end);
     }
 
     #screen-fade.active {
       opacity: 1;
       pointer-events: auto;
+    }
+
+    /* Subtle Retro CRT Scanlines + Vignette Overlay */
+    #retro-crt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 5;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.14) 0px,
+          rgba(0, 0, 0, 0.14) 1px,
+          transparent 1px,
+          transparent 3px
+        ),
+        radial-gradient(
+          circle at center,
+          rgba(0, 0, 0, 0) 64%,
+          rgba(0, 0, 0, 0.34) 100%
+        );
+    }
+
+    #retro-crt-overlay.hidden {
+      display: none;
     }
 
     /* Modals & Fullscreen Overlays (Title, Pause, GameOver, Settings, Quit) - Authentic Retro */
@@ -693,7 +721,10 @@
 <body>
   <canvas id="renderCanvas"></canvas>
 
-  <!-- Screen Fade Transition (Fondu sombre) -->
+  <!-- Retro CRT Scanlines Overlay -->
+  <div id="retro-crt-overlay"></div>
+
+  <!-- Screen Fade Transition (Fondu rétro par paliers) -->
   <div id="screen-fade"></div>
 
   <div id="ui-overlay">
@@ -809,6 +840,14 @@
           <span class="control-keys"><span class="key-badge">Echap</span> ou <span class="key-badge">P</span></span>
         </div>
       </div>
+
+      <div class="settings-section-title">RENDU RETRO</div>
+      <button id="btn-settings-retro" class="btn-retro btn-secondary" style="margin-bottom: 10px;">
+        <span class="cursor-arrow">►</span> MODE RETRO : ACTIVE
+      </button>
+      <button id="btn-settings-crt" class="btn-retro btn-secondary" style="margin-bottom: 16px;">
+        <span class="cursor-arrow">►</span> SCANLINES CRT : ACTIVE
+      </button>
 
       <div class="settings-section-title">OPTIONS AUDIO</div>
       <button id="btn-settings-audio" class="btn-retro btn-secondary" style="margin-bottom: 12px;">

@@ -49,6 +49,9 @@ export class GameManager {
 
     this.cameraManager = new CameraManager(this.scene, this.canvas);
     this.lightingManager = new LightingManager(this.scene);
+    this.lightingManager.attachRetroPostProcess(this.cameraManager.camera);
+    this.retroMode = true;
+    this.crtEnabled = true;
     this.collision = new CollisionManager();
     this.environment = new EnvironmentManager(this.scene);
     this.level = new LevelManager(this.scene, this.audio, this.saveData);
@@ -99,6 +102,20 @@ export class GameManager {
     });
 
     // Boutons des Paramètres
+    this.ui.btnSettingsRetro?.addEventListener('click', () => {
+      this.retroMode = !this.retroMode;
+      this.engine.setHardwareScalingLevel(
+        this.retroMode ? 2.25 : 1 / Math.min(window.devicePixelRatio || 1, 2)
+      );
+      this.lightingManager.setRetroEnabled(this.retroMode);
+      this.ui.updateRetroButtons(this.retroMode, this.crtEnabled);
+    });
+
+    this.ui.btnSettingsCrt?.addEventListener('click', () => {
+      this.crtEnabled = !this.crtEnabled;
+      this.ui.updateRetroButtons(this.retroMode, this.crtEnabled);
+    });
+
     this.ui.btnSettingsAudio?.addEventListener('click', () => {
       const active = this.audio.toggleMute();
       this.ui.updateSoundButton(!active);

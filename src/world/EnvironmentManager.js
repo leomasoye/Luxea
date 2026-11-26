@@ -5,6 +5,7 @@ import {
   Vector3,
   TransformNode
 } from '@babylonjs/core';
+import { RetroTextures } from '../rendering/RetroTextures.js';
 
 /**
  * EnvironmentManager.js — Décors, sol et falaises de la Plaine d'Éveil.
@@ -26,10 +27,11 @@ export class EnvironmentManager {
   }
 
   initTerrain() {
-    // Matériau Herbe verte rétro
+    // Matériau Herbe verte rétro pixel-art
     const grassMat = new StandardMaterial('mat_grass', this.scene);
-    grassMat.diffuseColor = new Color3(0.24, 0.58, 0.28);
-    grassMat.specularColor = new Color3(0.04, 0.08, 0.04);
+    grassMat.diffuseColor = new Color3(0.28, 0.65, 0.32);
+    grassMat.diffuseTexture = RetroTextures.get(this.scene, 'grass', 26, 26);
+    grassMat.specularColor = new Color3(0.03, 0.06, 0.03);
     grassMat.freeze();
 
     // Sol principal de la plaine (52 x 52 unités)
@@ -45,9 +47,10 @@ export class EnvironmentManager {
   }
 
   initPaths() {
-    // Matériau Sentier de terre battue
+    // Matériau Sentier de terre battue pixel-art
     const pathMat = new StandardMaterial('mat_path', this.scene);
-    pathMat.diffuseColor = new Color3(0.62, 0.48, 0.32);
+    pathMat.diffuseColor = new Color3(0.68, 0.54, 0.36);
+    pathMat.diffuseTexture = RetroTextures.get(this.scene, 'dirt', 8, 8);
     pathMat.specularColor = new Color3(0.02, 0.02, 0.02);
     pathMat.freeze();
 
@@ -97,19 +100,22 @@ export class EnvironmentManager {
   }
 
   initCliffsAndTrees() {
-    // Matériau Falaise rocheuse (Gris chaud low-poly)
+    // Matériau Falaise rocheuse (Gris chaud low-poly pixel-art)
     const rockMat = new StandardMaterial('mat_cliff', this.scene);
-    rockMat.diffuseColor = new Color3(0.42, 0.44, 0.48);
-    rockMat.specularColor = new Color3(0.08, 0.08, 0.08);
+    rockMat.diffuseColor = new Color3(0.48, 0.50, 0.54);
+    rockMat.diffuseTexture = RetroTextures.get(this.scene, 'cliff', 6, 3);
+    rockMat.specularColor = new Color3(0.06, 0.06, 0.06);
     rockMat.freeze();
 
-    // Matériaux Arbres (Tronc bois & feuillage conique)
+    // Matériaux Arbres (Tronc bois & feuillage conique pixel-art)
     const woodMat = new StandardMaterial('mat_tree_wood', this.scene);
-    woodMat.diffuseColor = new Color3(0.38, 0.22, 0.12);
+    woodMat.diffuseColor = new Color3(0.44, 0.27, 0.16);
+    woodMat.diffuseTexture = RetroTextures.get(this.scene, 'bark', 2, 2);
     woodMat.freeze();
 
     const foliageMat = new StandardMaterial('mat_tree_foliage', this.scene);
-    foliageMat.diffuseColor = new Color3(0.14, 0.48, 0.22);
+    foliageMat.diffuseColor = new Color3(0.18, 0.56, 0.26);
+    foliageMat.diffuseTexture = RetroTextures.get(this.scene, 'foliage', 3, 3);
     foliageMat.freeze();
 
     // Création des parois rocheuses périmétriques massives (Style forteresse / prison haute)
@@ -198,8 +204,9 @@ export class EnvironmentManager {
    */
   initRocks() {
     const rockMat = new StandardMaterial('mat_rock_boulder', this.scene);
-    rockMat.diffuseColor = new Color3(0.38, 0.41, 0.45); // Pierre granite ardoise rétro
-    rockMat.specularColor = new Color3(0.08, 0.08, 0.10);
+    rockMat.diffuseColor = new Color3(0.44, 0.47, 0.52); // Pierre granite ardoise rétro
+    rockMat.diffuseTexture = RetroTextures.get(this.scene, 'cliff', 2, 2);
+    rockMat.specularColor = new Color3(0.06, 0.06, 0.08);
     rockMat.freeze();
 
     // Positions stratégiques des rochers dans les coins et sur les côtés
