@@ -52,9 +52,12 @@ export class Player {
     this.legR = null;
     this.shadowDisc = null;
 
-    // Matériau pour le flash de dégâts (rouge/blanc)
+    // Matériaux de la tenue (robe de combat blanche et bleue) et flash de dégâts
     this.tunicMaterial = null;
+    this.dressBlueMaterial = null;
     this.hurtMaterial = null;
+    this.dressWhiteMeshes = [];
+    this.dressBlueMeshes = [];
 
     // Arme
     this.weapon = new Weapon(this.scene, this.visualRoot);
@@ -121,61 +124,160 @@ export class Player {
   }
 
   initMeshes() {
-    // Matériau Tunique (Vert émeraude aventurier rétro)
-    this.tunicMaterial = new StandardMaterial('mat_zelya_tunic', this.scene);
-    this.tunicMaterial.diffuseColor = new Color3(0.12, 0.65, 0.42);
-    this.tunicMaterial.specularColor = new Color3(0.1, 0.2, 0.1);
+    // Matériau Robe de combat - Blanc pur
+    this.tunicMaterial = new StandardMaterial('mat_zelya_dress_white', this.scene);
+    this.tunicMaterial.diffuseColor = new Color3(0.95, 0.97, 1.0);
+    this.tunicMaterial.specularColor = new Color3(0.15, 0.18, 0.25);
+
+    // Matériau Robe de combat - Bleu royal
+    this.dressBlueMaterial = new StandardMaterial('mat_zelya_dress_blue', this.scene);
+    this.dressBlueMaterial.diffuseColor = new Color3(0.14, 0.38, 0.86);
+    this.dressBlueMaterial.specularColor = new Color3(0.18, 0.28, 0.45);
+
+    // Matériau Liseré bleu ciel lumineux (accents de la robe)
+    const dressTrimMat = new StandardMaterial('mat_zelya_dress_trim', this.scene);
+    dressTrimMat.diffuseColor = new Color3(0.40, 0.78, 1.0);
+    dressTrimMat.emissiveColor = new Color3(0.14, 0.36, 0.62);
+    dressTrimMat.specularColor = new Color3(0.3, 0.5, 0.7);
 
     // Matériau Peau
     const skinMaterial = new StandardMaterial('mat_zelya_skin', this.scene);
-    skinMaterial.diffuseColor = new Color3(0.98, 0.8, 0.68);
+    skinMaterial.diffuseColor = new Color3(0.98, 0.82, 0.70);
     skinMaterial.specularColor = new Color3(0, 0, 0);
 
-    // Matériau Cheveux (Auburn rétro chaud)
+    // Matériau Cheveux (Blond doré lumineux)
     const hairMaterial = new StandardMaterial('mat_zelya_hair', this.scene);
-    hairMaterial.diffuseColor = new Color3(0.65, 0.28, 0.12);
-    hairMaterial.specularColor = new Color3(0.1, 0.05, 0);
+    hairMaterial.diffuseColor = new Color3(0.96, 0.82, 0.34);
+    hairMaterial.emissiveColor = new Color3(0.10, 0.08, 0.02);
+    hairMaterial.specularColor = new Color3(0.28, 0.22, 0.08);
 
-    // Matériau Bottes / Ceinture (Cuir brun)
-    const leatherMaterial = new StandardMaterial('mat_zelya_leather', this.scene);
-    leatherMaterial.diffuseColor = new Color3(0.42, 0.26, 0.14);
+    // Matériaux Diadème lumineux (Blanc éclatant & Cristal bleu lumineux)
+    const diademWhiteMat = new StandardMaterial('mat_zelya_diadem_white', this.scene);
+    diademWhiteMat.diffuseColor = new Color3(0.98, 0.99, 1.0);
+    diademWhiteMat.emissiveColor = new Color3(0.45, 0.58, 0.72);
+    diademWhiteMat.specularColor = new Color3(0.5, 0.6, 0.8);
+
+    const diademBlueMat = new StandardMaterial('mat_zelya_diadem_blue', this.scene);
+    diademBlueMat.diffuseColor = new Color3(0.28, 0.80, 1.0);
+    diademBlueMat.emissiveColor = new Color3(0.25, 0.78, 1.0);
+    diademBlueMat.specularColor = new Color3(0.6, 0.9, 1.0);
+
+    // Matériau Bottes de combat (Bleu nuit / saphir)
+    const bootMaterial = new StandardMaterial('mat_zelya_boots', this.scene);
+    bootMaterial.diffuseColor = new Color3(0.12, 0.28, 0.66);
+    bootMaterial.specularColor = new Color3(0.15, 0.22, 0.35);
 
     // Matériau de dégâts (flash rouge)
     this.hurtMaterial = new StandardMaterial('mat_zelya_hurt', this.scene);
     this.hurtMaterial.diffuseColor = new Color3(1.0, 0.2, 0.2);
     this.hurtMaterial.emissiveColor = new Color3(0.6, 0.0, 0.0);
 
-    // 1. Torse (Tunique)
+    this.dressWhiteMeshes = [];
+    this.dressBlueMeshes = [];
+
+    // 1. Torse (Corsage de la robe de combat blanche et bleue)
     this.bodyMesh = MeshBuilder.CreateBox('zelya_body', {
-      width: 0.65,
-      height: 0.75,
-      depth: 0.45
+      width: 0.62,
+      height: 0.72,
+      depth: 0.42
     }, this.scene);
     this.bodyMesh.material = this.tunicMaterial;
     this.bodyMesh.position.y = 0.82;
     this.bodyMesh.parent = this.visualRoot;
+    this.dressWhiteMeshes.push(this.bodyMesh);
 
-    // Ceinture (attachée au torse)
+    // Plastron bleu royal sur le buste (avant & arrière)
+    const chestPanel = MeshBuilder.CreateBox('zelya_chest_blue', {
+      width: 0.36,
+      height: 0.48,
+      depth: 0.44
+    }, this.scene);
+    chestPanel.material = this.dressBlueMaterial;
+    chestPanel.position.set(0, 0.06, 0);
+    chestPanel.parent = this.bodyMesh;
+    this.dressBlueMeshes.push(chestPanel);
+
+    // Col / liseré lumineux bleu ciel
+    const collarTrim = MeshBuilder.CreateBox('zelya_collar_trim', {
+      width: 0.44,
+      height: 0.08,
+      depth: 0.45
+    }, this.scene);
+    collarTrim.material = dressTrimMat;
+    collarTrim.position.set(0, 0.32, 0);
+    collarTrim.parent = this.bodyMesh;
+
+    // Ceinture / ruban de taille bleu royal
     const belt = MeshBuilder.CreateBox('zelya_belt', {
-      width: 0.67,
+      width: 0.66,
       height: 0.12,
-      depth: 0.47
+      depth: 0.46
     }, this.scene);
-    belt.material = leatherMaterial;
-    belt.position.set(0, -0.24, 0);
+    belt.material = this.dressBlueMaterial;
+    belt.position.set(0, -0.22, 0);
     belt.parent = this.bodyMesh;
+    this.dressBlueMeshes.push(belt);
 
-    // Boucle de ceinture (dorée)
-    const buckleMat = new StandardMaterial('mat_buckle', this.scene);
-    buckleMat.diffuseColor = new Color3(0.95, 0.8, 0.2);
+    // Boucle de ceinture (blanche et gemme bleue lumineuse)
     const buckle = MeshBuilder.CreateBox('zelya_buckle', {
-      width: 0.18,
-      height: 0.14,
-      depth: 0.50
+      width: 0.16,
+      height: 0.13,
+      depth: 0.48
     }, this.scene);
-    buckle.material = buckleMat;
-    buckle.position.set(0, -0.24, 0.02);
+    buckle.material = diademWhiteMat;
+    buckle.position.set(0, -0.22, 0.01);
     buckle.parent = this.bodyMesh;
+
+    const buckleGem = MeshBuilder.CreateBox('zelya_buckle_gem', {
+      width: 0.08,
+      height: 0.08,
+      depth: 0.05
+    }, this.scene);
+    buckleGem.material = diademBlueMat;
+    buckleGem.rotation.z = Math.PI / 4;
+    buckleGem.position.set(0, -0.22, 0.25);
+    buckleGem.parent = this.bodyMesh;
+
+    // Jupe de combat évasée (blanche avec bordure et pan bleu royal)
+    const skirtUpper = MeshBuilder.CreateBox('zelya_skirt_upper', {
+      width: 0.72,
+      height: 0.22,
+      depth: 0.52
+    }, this.scene);
+    skirtUpper.material = this.tunicMaterial;
+    skirtUpper.position.set(0, -0.35, 0);
+    skirtUpper.parent = this.bodyMesh;
+    this.dressWhiteMeshes.push(skirtUpper);
+
+    const skirtLower = MeshBuilder.CreateBox('zelya_skirt_lower', {
+      width: 0.80,
+      height: 0.16,
+      depth: 0.58
+    }, this.scene);
+    skirtLower.material = this.dressBlueMaterial;
+    skirtLower.position.set(0, -0.48, 0);
+    skirtLower.parent = this.bodyMesh;
+    this.dressBlueMeshes.push(skirtLower);
+
+    // Pan central blanc sur le devant de la robe (style tabard de combat)
+    const frontTabard = MeshBuilder.CreateBox('zelya_front_tabard', {
+      width: 0.28,
+      height: 0.30,
+      depth: 0.06
+    }, this.scene);
+    frontTabard.material = this.tunicMaterial;
+    frontTabard.position.set(0, -0.41, 0.28);
+    frontTabard.parent = this.bodyMesh;
+    this.dressWhiteMeshes.push(frontTabard);
+
+    const frontTabardTrim = MeshBuilder.CreateBox('zelya_front_tabard_trim', {
+      width: 0.30,
+      height: 0.05,
+      depth: 0.07
+    }, this.scene);
+    frontTabardTrim.material = dressTrimMat;
+    frontTabardTrim.position.set(0, -0.55, 0.285);
+    frontTabardTrim.parent = this.bodyMesh;
 
     // 2. Tête (articulée)
     this.headMesh = MeshBuilder.CreateBox('zelya_head', {
@@ -187,9 +289,9 @@ export class Player {
     this.headMesh.position.y = 1.48;
     this.headMesh.parent = this.visualRoot;
 
-    // Yeux rétro (attachés au visage)
+    // Yeux rétro (bleu profond, attachés au visage)
     const eyeMat = new StandardMaterial('mat_eye', this.scene);
-    eyeMat.diffuseColor = new Color3(0.1, 0.1, 0.15);
+    eyeMat.diffuseColor = new Color3(0.08, 0.22, 0.52);
     const leftEye = MeshBuilder.CreateBox('eye_l', { width: 0.08, height: 0.1, depth: 0.05 }, this.scene);
     leftEye.material = eyeMat;
     leftEye.position.set(-0.14, 0.02, 0.26);
@@ -200,53 +302,162 @@ export class Player {
     rightEye.position.set(0.14, 0.02, 0.26);
     rightEye.parent = this.headMesh;
 
-    // 3. Chevelure rétro (attachée à la tête)
+    // 3. Chevelure blonde rétro (attachée à la tête)
     this.hairMesh = MeshBuilder.CreateBox('zelya_hair_top', {
       width: 0.58,
       height: 0.24,
       depth: 0.56
     }, this.scene);
     this.hairMesh.material = hairMaterial;
-    this.hairMesh.position.set(0, 0.28, 0);
+    this.hairMesh.position.set(0, 0.26, 0);
     this.hairMesh.parent = this.headMesh;
+
+    // Mèches latérales encadrant le visage
+    const hairSideL = MeshBuilder.CreateBox('zelya_hair_side_l', {
+      width: 0.12,
+      height: 0.36,
+      depth: 0.16
+    }, this.scene);
+    hairSideL.material = hairMaterial;
+    hairSideL.position.set(-0.27, 0.02, 0.12);
+    hairSideL.parent = this.headMesh;
+
+    const hairSideR = MeshBuilder.CreateBox('zelya_hair_side_r', {
+      width: 0.12,
+      height: 0.36,
+      depth: 0.16
+    }, this.scene);
+    hairSideR.material = hairMaterial;
+    hairSideR.position.set(0.27, 0.02, 0.12);
+    hairSideR.parent = this.headMesh;
 
     this.hairBack = MeshBuilder.CreateBox('zelya_hair_back', {
       width: 0.58,
-      height: 0.55,
-      depth: 0.2
+      height: 0.64,
+      depth: 0.20
     }, this.scene);
     this.hairBack.material = hairMaterial;
-    this.hairBack.position.set(0, 0, -0.22);
+    this.hairBack.position.set(0, -0.04, -0.22);
     this.hairBack.parent = this.headMesh;
 
-    // 4. Jambes / Bottes articulées (pivots aux hanches à y = 0.44)
+    // 3b. Diadème blanc et bleu lumineux (attaché à la tête)
+    const diademBand = MeshBuilder.CreateBox('zelya_diadem_band', {
+      width: 0.60,
+      height: 0.07,
+      depth: 0.58
+    }, this.scene);
+    diademBand.material = diademWhiteMat;
+    diademBand.position.set(0, 0.21, 0.01);
+    diademBand.parent = this.headMesh;
+
+    const diademCenterPeak = MeshBuilder.CreateBox('zelya_diadem_peak_center', {
+      width: 0.16,
+      height: 0.14,
+      depth: 0.07
+    }, this.scene);
+    diademCenterPeak.material = diademWhiteMat;
+    diademCenterPeak.position.set(0, 0.27, 0.285);
+    diademCenterPeak.parent = this.headMesh;
+
+    const diademWingL = MeshBuilder.CreateBox('zelya_diadem_wing_l', {
+      width: 0.11,
+      height: 0.09,
+      depth: 0.06
+    }, this.scene);
+    diademWingL.material = diademWhiteMat;
+    diademWingL.position.set(-0.17, 0.245, 0.28);
+    diademWingL.rotation.z = 0.22;
+    diademWingL.parent = this.headMesh;
+
+    const diademWingR = MeshBuilder.CreateBox('zelya_diadem_wing_r', {
+      width: 0.11,
+      height: 0.09,
+      depth: 0.06
+    }, this.scene);
+    diademWingR.material = diademWhiteMat;
+    diademWingR.position.set(0.17, 0.245, 0.28);
+    diademWingR.rotation.z = -0.22;
+    diademWingR.parent = this.headMesh;
+
+    // Gemme centrale bleue lumineuse du diadème
+    const diademGemCenter = MeshBuilder.CreateBox('zelya_diadem_gem_center', {
+      width: 0.095,
+      height: 0.095,
+      depth: 0.06
+    }, this.scene);
+    diademGemCenter.material = diademBlueMat;
+    diademGemCenter.rotation.z = Math.PI / 4;
+    diademGemCenter.position.set(0, 0.275, 0.31);
+    diademGemCenter.parent = this.headMesh;
+
+    // Petites gemmes latérales bleues lumineuses
+    const diademGemL = MeshBuilder.CreateBox('zelya_diadem_gem_l', {
+      width: 0.055,
+      height: 0.055,
+      depth: 0.05
+    }, this.scene);
+    diademGemL.material = diademBlueMat;
+    diademGemL.rotation.z = Math.PI / 4;
+    diademGemL.position.set(-0.17, 0.24, 0.30);
+    diademGemL.parent = this.headMesh;
+
+    const diademGemR = MeshBuilder.CreateBox('zelya_diadem_gem_r', {
+      width: 0.055,
+      height: 0.055,
+      depth: 0.05
+    }, this.scene);
+    diademGemR.material = diademBlueMat;
+    diademGemR.rotation.z = Math.PI / 4;
+    diademGemR.position.set(0.17, 0.24, 0.30);
+    diademGemR.parent = this.headMesh;
+
+    // 4. Jambes / Bottes de combat articulées (pivots aux hanches à y = 0.44)
     this.legLRoot = new TransformNode('zelya_leg_l_root', this.scene);
     this.legLRoot.position.set(-0.18, 0.44, 0);
     this.legLRoot.parent = this.visualRoot;
 
-    this.legL = MeshBuilder.CreateBox('zelya_leg_l', { width: 0.22, height: 0.44, depth: 0.26 }, this.scene);
-    this.legL.material = leatherMaterial;
+    this.legL = MeshBuilder.CreateBox('zelya_leg_l', { width: 0.20, height: 0.44, depth: 0.24 }, this.scene);
+    this.legL.material = bootMaterial;
     this.legL.position.set(0, -0.22, 0);
     this.legL.parent = this.legLRoot;
+
+    const bootCuffL = MeshBuilder.CreateBox('zelya_boot_cuff_l', { width: 0.23, height: 0.08, depth: 0.27 }, this.scene);
+    bootCuffL.material = this.tunicMaterial;
+    bootCuffL.position.set(0, -0.08, 0);
+    bootCuffL.parent = this.legLRoot;
+    this.dressWhiteMeshes.push(bootCuffL);
 
     this.legRRoot = new TransformNode('zelya_leg_r_root', this.scene);
     this.legRRoot.position.set(0.18, 0.44, 0);
     this.legRRoot.parent = this.visualRoot;
 
-    this.legR = MeshBuilder.CreateBox('zelya_leg_r', { width: 0.22, height: 0.44, depth: 0.26 }, this.scene);
-    this.legR.material = leatherMaterial;
+    this.legR = MeshBuilder.CreateBox('zelya_leg_r', { width: 0.20, height: 0.44, depth: 0.24 }, this.scene);
+    this.legR.material = bootMaterial;
     this.legR.position.set(0, -0.22, 0);
     this.legR.parent = this.legRRoot;
+
+    const bootCuffR = MeshBuilder.CreateBox('zelya_boot_cuff_r', { width: 0.23, height: 0.08, depth: 0.27 }, this.scene);
+    bootCuffR.material = this.tunicMaterial;
+    bootCuffR.position.set(0, -0.08, 0);
+    bootCuffR.parent = this.legRRoot;
+    this.dressWhiteMeshes.push(bootCuffR);
 
     // 5. Bras articulés (pivots aux épaules à y = 1.05)
     this.armLRoot = new TransformNode('zelya_arm_l_root', this.scene);
     this.armLRoot.position.set(-0.42, 1.05, 0);
     this.armLRoot.parent = this.visualRoot;
 
-    this.sleeveL = MeshBuilder.CreateBox('zelya_sleeve_l', { width: 0.18, height: 0.32, depth: 0.22 }, this.scene);
+    const pauldronL = MeshBuilder.CreateBox('zelya_pauldron_l', { width: 0.23, height: 0.12, depth: 0.26 }, this.scene);
+    pauldronL.material = this.dressBlueMaterial;
+    pauldronL.position.set(0, -0.02, 0);
+    pauldronL.parent = this.armLRoot;
+    this.dressBlueMeshes.push(pauldronL);
+
+    this.sleeveL = MeshBuilder.CreateBox('zelya_sleeve_l', { width: 0.18, height: 0.30, depth: 0.22 }, this.scene);
     this.sleeveL.material = this.tunicMaterial;
-    this.sleeveL.position.set(0, -0.16, 0);
+    this.sleeveL.position.set(0, -0.17, 0);
     this.sleeveL.parent = this.armLRoot;
+    this.dressWhiteMeshes.push(this.sleeveL);
 
     this.handL = MeshBuilder.CreateBox('zelya_hand_l', { width: 0.14, height: 0.15, depth: 0.16 }, this.scene);
     this.handL.material = skinMaterial;
@@ -257,10 +468,17 @@ export class Player {
     this.armRRoot.position.set(0.42, 1.05, 0);
     this.armRRoot.parent = this.visualRoot;
 
-    this.sleeveR = MeshBuilder.CreateBox('zelya_sleeve_r', { width: 0.18, height: 0.32, depth: 0.22 }, this.scene);
+    const pauldronR = MeshBuilder.CreateBox('zelya_pauldron_r', { width: 0.23, height: 0.12, depth: 0.26 }, this.scene);
+    pauldronR.material = this.dressBlueMaterial;
+    pauldronR.position.set(0, -0.02, 0);
+    pauldronR.parent = this.armRRoot;
+    this.dressBlueMeshes.push(pauldronR);
+
+    this.sleeveR = MeshBuilder.CreateBox('zelya_sleeve_r', { width: 0.18, height: 0.30, depth: 0.22 }, this.scene);
     this.sleeveR.material = this.tunicMaterial;
-    this.sleeveR.position.set(0, -0.16, 0);
+    this.sleeveR.position.set(0, -0.17, 0);
     this.sleeveR.parent = this.armRRoot;
+    this.dressWhiteMeshes.push(this.sleeveR);
 
     this.handR = MeshBuilder.CreateBox('zelya_hand_r', { width: 0.14, height: 0.15, depth: 0.16 }, this.scene);
     this.handR.material = skinMaterial;
@@ -764,25 +982,27 @@ export class Player {
 
     if (this.invulnerableTimer > 0) {
       this.invulnerableTimer -= dt;
-      // Clignotement visuel de dégâts
+      // Clignotement visuel de dégâts sur toute la robe de combat
       const flash = Math.floor(this.invulnerableTimer * 15) % 2 === 0;
-      const mat = flash ? this.hurtMaterial : this.tunicMaterial;
-      this.bodyMesh.material = mat;
-      if (this.sleeveL) this.sleeveL.material = mat;
-      if (this.sleeveR) this.sleeveR.material = mat;
+      for (const m of this.dressWhiteMeshes) {
+        m.material = flash ? this.hurtMaterial : this.tunicMaterial;
+      }
+      for (const m of this.dressBlueMeshes) {
+        m.material = flash ? this.hurtMaterial : this.dressBlueMaterial;
+      }
     } else if (this.healFlashTimer > 0) {
       this.healFlashTimer -= dt;
-      // Lueur d'émeraude régénérante sur la tunique
+      // Lueur d'émeraude régénérante sur la robe
       const glow = Math.sin(Math.min(1.0, this.healFlashTimer / 0.55) * Math.PI);
       this.tunicMaterial.emissiveColor.set(0.12 * glow, 0.78 * glow, 0.28 * glow);
-      this.bodyMesh.material = this.tunicMaterial;
-      if (this.sleeveL) this.sleeveL.material = this.tunicMaterial;
-      if (this.sleeveR) this.sleeveR.material = this.tunicMaterial;
+      this.dressBlueMaterial.emissiveColor.set(0.10 * glow, 0.65 * glow, 0.25 * glow);
+      for (const m of this.dressWhiteMeshes) m.material = this.tunicMaterial;
+      for (const m of this.dressBlueMeshes) m.material = this.dressBlueMaterial;
     } else {
       this.tunicMaterial.emissiveColor.set(0, 0, 0);
-      this.bodyMesh.material = this.tunicMaterial;
-      if (this.sleeveL) this.sleeveL.material = this.tunicMaterial;
-      if (this.sleeveR) this.sleeveR.material = this.tunicMaterial;
+      this.dressBlueMaterial.emissiveColor.set(0, 0, 0);
+      for (const m of this.dressWhiteMeshes) m.material = this.tunicMaterial;
+      for (const m of this.dressBlueMeshes) m.material = this.dressBlueMaterial;
     }
 
     // 2. Gestion de l'état Mode Torche
