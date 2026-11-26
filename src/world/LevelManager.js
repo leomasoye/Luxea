@@ -8,6 +8,7 @@ import {
 import { Bush } from '../entities/Bush.js';
 import { ThornBush } from '../entities/ThornBush.js';
 import { TrainingDummy } from '../entities/TrainingDummy.js';
+import { SaveManager } from '../core/SaveManager.js';
 
 /**
  * LevelManager.js — Hub de la Plaine d'Éveil et les 3 Passages.
@@ -223,17 +224,6 @@ export class LevelManager {
     stelePillar.position.set(21.6, 0.9, 0.1);
     stelePillar.parent = this.root;
     stelePillar.freezeWorldMatrix();
-
-    // Déclencheur interactif de lore sur la stèle (hors de l'allée pour ne pas gêner le passage)
-    this.interactables.push({
-      id: 'east_cave_stele',
-      title: "Stèle de la Caverne",
-      position: new Vector3(21.6, 1.0, 0.1),
-      radius: 1.6,
-      promptText: "[E] Lire la stèle",
-      speaker: "Stèle ancienne",
-      text: "« Par-delà cette arche s'étend la Caverne du Gardien. Que la lumière de ton épée transperce les ténèbres qui s'y terrent. »"
-    });
   }
 
   // --- 2. Chemin 2 (Ouest) : Le Sanctuaire des Ruines (Verrouillé) ---
@@ -272,20 +262,22 @@ export class LevelManager {
     gate.position.set(-24.0, 1.9, 2.0);
     gate.parent = this.root;
     this.westGateMesh = gate;
+    this.westGateMesh.setEnabled(!this.saveState.westGateOpen);
 
-    // Déclencheur interactif
+    // Déverrouillage de la grille Ouest avec la Clé simple trouvée dans la Caverne
     this.interactables.push({
       id: 'west_sanctuary',
-      title: "Sanctuaire des Ruines",
       position: new Vector3(-21.8, 1.2, 2.0),
-      radius: 2.0,
-      promptText: "[E] Examiner la grille",
-      speaker: "Grille Scellee",
-      getText: () => {
-        if (this.saveState.simpleKey) {
-          return "La Clé simple brille dans votre sacoche ! Vous pouvez insérer la clé pour déverrouiller la grille vers le Sanctuaire des Ruines.";
+      radius: 2.2,
+      isAvailable: () => !!this.saveState.simpleKey && !this.saveState.westGateOpen,
+      promptText: "[E] Ouvrir la grille",
+      onInteract: () => {
+        if (!this.saveState.simpleKey || this.saveState.westGateOpen) return;
+        this.saveState.westGateOpen = true;
+        SaveManager.save(this.saveState);
+        if (this.westGateMesh) {
+          this.westGateMesh.setEnabled(false);
         }
-        return "La grille de bronze est fermement verrouillée. Une gravure ancienne indique qu'une Clé simple est requise pour entrer. Elle doit se trouver dans la Caverne à l'Est.";
       }
     });
   }
@@ -342,22 +334,6 @@ export class LevelManager {
     lockMesh.material = lockMat;
     lockMesh.position.set(0, 2.5, 23.8);
     lockMesh.parent = this.root;
-
-    // Déclencheur interactif narratif majeur
-    this.interactables.push({
-      id: 'north_boss_door',
-      title: "Chambre de Gallen",
-      position: new Vector3(0, 1.2, 22.6),
-      radius: 2.0,
-      promptText: "[E] Ecouter a la porte",
-      speaker: "Lyo & Gallen",
-      getText: () => {
-        if (this.saveState.bossKey) {
-          return "Vous tenez la Clé du Boss ! Le sanctuaire tremble... Il est temps d'affronter Gallen et de délivrer Lyo !";
-        }
-        return "Des coups sourds et une voix étouffée retentissent derrière le battant : « Zelya ! C'est moi, Lyo ! Gallen m'a enfermé ici... Trouve la Clé du Boss pour briser le sceau ! »";
-      }
-    });
   }
 
   // --- 4. Panneau en Bois Interactif au Spawn ---
@@ -380,17 +356,6 @@ export class LevelManager {
     board.rotation.y = -0.25;
     board.parent = this.root;
     board.freezeWorldMatrix();
-
-    // Déclencheur interactif
-    this.interactables.push({
-      id: 'spawn_sign',
-      title: "Panneau de la Plaine d'Eveil",
-      position: new Vector3(2.4, 1.0, -3.2),
-      radius: 1.8,
-      promptText: "[E] Lire le panneau",
-      speaker: "Panneau d'information",
-      text: "Bienvenue dans la Plaine d'Eveil ! Deplacez-vous avec ZQSD / WASD / Fleches. Tournez la camera avec [Clic Droit] ou [Molette] (recentrage avec [R]). Tranchez les buissons avec [Espace] ou [J]. Brandissez la Lumiere avec [Shift]. Lyo est retenu au Nord !"
-    });
   }
 
   // --- 5. Buissons tranchables diversifiés (tailles, formes, couleurs et lobes variés) ---
@@ -551,13 +516,14 @@ export class LevelManager {
     let minDist = Infinity;
 
     this.interactables.forEach(item => {
+      if (typeof item.isAvailable === 'function' && !item.isAvailable()) return;
       const dx = item.position.x - playerPos.x;
       const dz = item.position.z - playerPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
 
       if (dist <= item.radius && dist < minDist) {
         // Si un angle de regard est fourni, vérifier que Zelya regarde globalement vers l'objet (exclut le dos)
-        if (playerFacingAngle !== null && playerFacingAngle !== undefined) {
+        if (playerFacingAngle !== null && playerFacingAngle !== undefined && dist > 0.1) {
           const forwardX = Math.sin(playerFacingAngle);
           const forwardZ = Math.cos(playerFacingAngle);
           const dirX = dx / dist;
@@ -569,7 +535,10 @@ export class LevelManager {
           }
         }
         minDist = dist;
-        nearest = item;
+        nearest = {
+          ...item,
+          promptText: typeof item.getPromptText === 'function' ? item.getPromptText() : item.promptText
+        };
       }
     });
 
@@ -676,10 +645,9 @@ export class LevelManager {
     collisionManager.addCircle(2.4, -3.2, 0.45, 'spawn_sign');
 
     // 2. Portes & Passages
-    // Grille de bronze scellée (Ouest) & colonnes
+    // Grille de bronze scellée (Ouest) & colonnes (la grille elle-même est gérée dynamiquement)
     collisionManager.addBox(-25.2, -22.8, -0.6, 1.1, 'west_col_l');
     collisionManager.addBox(-25.2, -22.8, 2.9, 4.6, 'west_col_r');
-    collisionManager.addBox(-24.4, -23.6, 0.6, 3.4, 'west_gate');
 
     // Porte imposante du Boss (Nord) & monolithes
     collisionManager.addBox(-2.0, 2.0, 23.6, 24.8, 'boss_door');
@@ -703,9 +671,19 @@ export class LevelManager {
       );
     }
 
-    // 4. Buissons tranchables & ronces : actifs uniquement tant qu'ils ne sont pas coupés
+    // 4. Buissons tranchables, ronces & grille Ouest (actifs uniquement tant que non détruits / non ouverts)
     collisionManager.addDynamicSource(() => {
       const colliders = [];
+      if (!this.saveState.westGateOpen) {
+        colliders.push({
+          type: 'box',
+          minX: -24.4,
+          maxX: -23.6,
+          minZ: 0.6,
+          maxZ: 3.4,
+          tag: 'west_gate'
+        });
+      }
       this.bushes.forEach(b => {
         if (!b.isCut) {
           colliders.push({
@@ -732,10 +710,17 @@ export class LevelManager {
     });
   }
 
+  syncGates() {
+    if (this.westGateMesh) {
+      this.westGateMesh.setEnabled(!this.saveState.westGateOpen);
+    }
+  }
+
   /**
    * Réinitialise les buissons, ronces et pickups (appelé lors d'un respawn ou reset).
    */
   reset() {
+    this.syncGates();
     this.bushes.forEach(b => b.reset());
     this.thornBushes.forEach(tb => tb.reset());
     this.pickups.forEach(p => p.dispose());

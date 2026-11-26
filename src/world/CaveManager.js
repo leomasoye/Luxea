@@ -51,7 +51,6 @@ export class CaveManager {
     this.switchActivated = !!this.saveData.simpleKey;
     this.chestRevealed = !!this.saveData.simpleKey;
     this.chestOpened = !!this.saveData.simpleKey;
-    this.cryptDoorOpened = false;
 
     // Matériaux partagés avec maxSimultaneousLights = 8 pour supporter l'éclairage des torches
     this.initMaterials();
@@ -310,6 +309,18 @@ export class CaveManager {
     createWall('wall_w_south', 3.5, this.wallHeight, 22, 178.5, wallY, -13.5);
     // Linteau supérieur au-dessus de la sortie Ouest
     createWall('wall_w_top', 3.5, this.wallHeight - 5.0, 5.2, 178.5, 5.0 + (this.wallHeight - 5.0) / 2, 0);
+
+    // Fermeture étanche des 4 zones périphériques (empêche tout vide noir visible ou accessible)
+    // 1. Fermeture Nord-Ouest (entre paroi Ouest et flanc Ouest de la terrasse Nord, Z = 10.5)
+    createWall('wall_nw_close', 16.5, this.wallHeight, 2.5, 186.25, wallY, 11.75);
+    // 2. Paroi Nord de la Galerie Est (Z = 11.0 à 13.5, X = 215.5 à 232.0)
+    createWall('wall_east_n_close', 16.5, this.wallHeight, 2.5, 223.75, wallY, 12.25);
+    // 3. Paroi Sud de la Galerie Est (Z = -13.5 à -11.0, X = 215.5 à 232.0)
+    createWall('wall_east_s_close', 16.5, this.wallHeight, 2.5, 223.75, wallY, -12.25);
+    // 4. Paroi Ouest du Recoin Secret Sud (X = 191.75 à 194.25, Z = -24.5 à -11.5)
+    createWall('wall_south_w_close', 2.5, this.wallHeight, 13.0, 193.0, wallY, -18.0);
+    // 5. Paroi Est du Recoin Secret Sud (X = 211.75 à 214.25, Z = -24.5 à -11.5)
+    createWall('wall_south_e_close', 2.5, this.wallHeight, 13.0, 213.0, wallY, -18.0);
   }
 
   // --- 4. Cloisons rocheuses internes & découpage des recoins ---
@@ -672,74 +683,11 @@ export class CaveManager {
     }
     this.chestRoot.setEnabled(this.chestRevealed);
 
-    // 4. Grande Porte Verrouillée au fond de la Crypte Est (X: 229.3, Y: 0, Z: 0)
-    this.cryptDoorPos = new Vector3(229.3, 0, 0);
-    const doorFrameMat = new StandardMaterial('mat_crypt_door_frame', this.scene);
-    doorFrameMat.diffuseColor = new Color3(0.26, 0.29, 0.36);
-    doorFrameMat.maxSimultaneousLights = 8;
-    doorFrameMat.freeze();
-
-    const bronzeMat = new StandardMaterial('mat_crypt_door_bronze', this.scene);
-    bronzeMat.diffuseColor = new Color3(0.42, 0.31, 0.18);
-    bronzeMat.specularColor = new Color3(0.30, 0.24, 0.14);
-    bronzeMat.maxSimultaneousLights = 8;
-    bronzeMat.freeze();
-
-    const portalMat = new StandardMaterial('mat_crypt_portal', this.scene);
-    portalMat.diffuseColor = new Color3(0.25, 0.85, 0.95);
-    portalMat.emissiveColor = new Color3(0.18, 0.68, 0.85);
-    portalMat.freeze();
-
-    // Cadre de porte en pierre
-    const frameL = MeshBuilder.CreateBox('crypt_door_fl', { width: 0.9, height: 4.8, depth: 0.9 }, this.scene);
-    frameL.material = doorFrameMat;
-    frameL.position.set(229.2, 2.4, -2.0);
-    frameL.parent = this.root;
-    frameL.freezeWorldMatrix();
-
-    const frameR = MeshBuilder.CreateBox('crypt_door_fr', { width: 0.9, height: 4.8, depth: 0.9 }, this.scene);
-    frameR.material = doorFrameMat;
-    frameR.position.set(229.2, 2.4, 2.0);
-    frameR.parent = this.root;
-    frameR.freezeWorldMatrix();
-
-    const frameTop = MeshBuilder.CreateBox('crypt_door_ft', { width: 1.0, height: 0.9, depth: 5.0 }, this.scene);
-    frameTop.material = doorFrameMat;
-    frameTop.position.set(229.2, 4.9, 0);
-    frameTop.parent = this.root;
-    frameTop.freezeWorldMatrix();
-
-    // Lueur mystique derrière la porte (visible une fois ouverte)
-    const portalGlow = MeshBuilder.CreatePlane('crypt_portal_glow', { width: 3.2, height: 4.4 }, this.scene);
-    portalGlow.material = portalMat;
-    portalGlow.rotation.y = -Math.PI / 2;
-    portalGlow.position.set(229.45, 2.2, 0);
-    portalGlow.parent = this.root;
-    portalGlow.freezeWorldMatrix();
-
-    // Deux vantaux en bronze coulissants
-    this.doorLeafL = MeshBuilder.CreateBox('crypt_door_leaf_l', { width: 0.45, height: 4.4, depth: 1.65 }, this.scene);
-    this.doorLeafL.material = bronzeMat;
-    this.doorLeafL.position.set(229.1, 2.2, -0.82);
-    this.doorLeafL.parent = this.root;
-
-    this.doorLeafR = MeshBuilder.CreateBox('crypt_door_leaf_r', { width: 0.45, height: 4.4, depth: 1.65 }, this.scene);
-    this.doorLeafR.material = bronzeMat;
-    this.doorLeafR.position.set(229.1, 2.2, 0.82);
-    this.doorLeafR.parent = this.root;
-
-    // Serrure dorée centrale
-    this.doorLockEmblem = MeshBuilder.CreateBox('crypt_door_lock', { width: 0.55, height: 0.65, depth: 0.55 }, this.scene);
-    this.doorLockEmblem.material = goldMat;
-    this.doorLockEmblem.position.set(229.0, 2.0, 0);
-    this.doorLockEmblem.parent = this.root;
-
-    // Enregistrement des interactables de la caverne (Coffre + Porte)
+    // Enregistrement du coffre contenant la Clé simple (ouvre la grille Ouest de la Plaine d'Éveil)
     this.interactables.push({
       id: 'cave_secret_chest',
       position: this.chestPos,
       radius: 2.3,
-      speaker: 'Coffre Ancien',
       isAvailable: () => this.chestRevealed && !this.chestOpened,
       promptText: '[E] Ouvrir le coffre',
       onInteract: () => {
@@ -748,30 +696,6 @@ export class CaveManager {
         this.chestLidPivot.rotation.x = 1.35;
         this.saveData.simpleKey = true;
         SaveManager.save(this.saveData);
-      },
-      getText: () =>
-        'Vous ouvrez le coffre ancien et trouvez la Clé de la Caverne ! Elle devrait ouvrir la grande porte verrouillée au fond de la Crypte Est.'
-    });
-
-    this.interactables.push({
-      id: 'cave_crypt_door',
-      position: new Vector3(228.6, 0, 0),
-      radius: 2.8,
-      speaker: 'Porte de la Crypte',
-      isAvailable: () => !this.cryptDoorOpened,
-      getPromptText: () => (this.saveData.simpleKey ? '[E] Déverrouiller la porte' : '[E] Examiner la porte'),
-      onInteract: () => {
-        if (!this.saveData.simpleKey || this.cryptDoorOpened) return;
-        this.cryptDoorOpened = true;
-        this.doorLeafL.position.z = -2.35;
-        this.doorLeafR.position.z = 2.35;
-        this.doorLockEmblem.setEnabled(false);
-      },
-      getText: () => {
-        if (this.cryptDoorOpened || this.saveData.simpleKey) {
-          return 'La Clé de la Caverne tourne dans la serrure ! Les lourds vantaux de bronze s\'ouvrent lentement, révélant le passage vers les profondeurs du sanctuaire.';
-        }
-        return 'Cette lourde porte de bronze est verrouillée. Une serrure dorée attend une clé ancienne… Peut-être est-elle cachée quelque part dans la caverne ?';
       }
     });
   }
@@ -905,6 +829,31 @@ export class CaveManager {
     daylightPlane.position.set(175.2, 2.25, 0);
     daylightPlane.parent = this.root;
     daylightPlane.freezeWorldMatrix();
+
+    // Sol, parois latérales et plafond du boyau de sortie (X: 175 à 180) pour éviter tout vide noir
+    const exitFloor = MeshBuilder.CreateGround('cave_exit_floor', { width: 6.0, height: 5.2 }, this.scene);
+    exitFloor.material = this.pavingMat;
+    exitFloor.position.set(177.5, 0.01, 0);
+    exitFloor.parent = this.root;
+    exitFloor.freezeWorldMatrix();
+
+    const exitWallN = MeshBuilder.CreateBox('cave_exit_tun_n', { width: 5.5, height: 5.5, depth: 1.2 }, this.scene);
+    exitWallN.material = this.wallMat;
+    exitWallN.position.set(177.5, 2.75, 2.6);
+    exitWallN.parent = this.root;
+    exitWallN.freezeWorldMatrix();
+
+    const exitWallS = MeshBuilder.CreateBox('cave_exit_tun_s', { width: 5.5, height: 5.5, depth: 1.2 }, this.scene);
+    exitWallS.material = this.wallMat;
+    exitWallS.position.set(177.5, 2.75, -2.6);
+    exitWallS.parent = this.root;
+    exitWallS.freezeWorldMatrix();
+
+    const exitCeil = MeshBuilder.CreateBox('cave_exit_tun_ceil', { width: 5.5, height: 1.2, depth: 5.6 }, this.scene);
+    exitCeil.material = this.wallMat;
+    exitCeil.position.set(177.5, 5.2, 0);
+    exitCeil.parent = this.root;
+    exitCeil.freezeWorldMatrix();
   }
 
   // --- 8. Plafond horizontal haut de la caverne & Stalactites ---
@@ -1151,6 +1100,13 @@ export class CaveManager {
     collisionManager.addBox(174.5, 180.0, 1.8, 3.8, 'cave_tun_n', 'cavern');
     collisionManager.addBox(174.5, 180.0, -3.8, -1.8, 'cave_tun_s', 'cavern');
 
+    // Fermetures étanches des zones périphériques (alignées sur les murs)
+    collisionManager.addBox(178.0, 194.5, 10.5, 13.0, 'cave_wall_nw_close', 'cavern');
+    collisionManager.addBox(215.5, 232.0, 11.0, 13.5, 'cave_wall_east_n_close', 'cavern');
+    collisionManager.addBox(215.5, 232.0, -13.5, -11.0, 'cave_wall_east_s_close', 'cavern');
+    collisionManager.addBox(191.75, 194.25, -24.5, -11.5, 'cave_wall_south_w_close', 'cavern');
+    collisionManager.addBox(211.75, 214.25, -24.5, -11.5, 'cave_wall_south_e_close', 'cavern');
+
     // 2. Relief : Falaises et Parapets du Plateau Nord
     // Parapet gauche le long du vide (X: 194 à 199.5, Z = 10.5)
     collisionManager.addBox(193.5, 199.5, 9.9, 10.9, 'terrace_parapet_l', 'cavern');
@@ -1295,7 +1251,6 @@ export class CaveManager {
     this.switchActivated = false;
     this.chestRevealed = false;
     this.chestOpened = false;
-    this.cryptDoorOpened = false;
 
     if (this.switchPlate) {
       this.switchPlate.position.y = 0.16;
@@ -1309,9 +1264,6 @@ export class CaveManager {
     if (this.chestLidPivot) {
       this.chestLidPivot.rotation.x = 0;
     }
-    if (this.doorLeafL) this.doorLeafL.position.z = -0.82;
-    if (this.doorLeafR) this.doorLeafR.position.z = 0.82;
-    if (this.doorLockEmblem) this.doorLockEmblem.setEnabled(true);
 
     if (this.breakableRocks.length === 0) {
       const rock = new BreakableRock(this.scene, this.root, this.switchPos.x, 0, this.switchPos.z, 'secret_switch_rock');
@@ -1412,10 +1364,6 @@ export class CaveManager {
         if (cameraManager) {
           cameraManager.shake(0.24, 0.35);
         }
-        this.pendingNotification = {
-          speaker: 'Mécanisme Ancien',
-          text: 'La dalle s\'enfonce dans un grondement sourd ! Un coffre ancien vient d\'apparaître sur l\'Autel du Plateau Nord.'
-        };
       }
     }
 

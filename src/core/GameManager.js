@@ -14,7 +14,6 @@ import { UIManager } from '../ui/UIManager.js';
 export const GameState = {
   TITLE: 'TITLE',
   PLAYING: 'PLAYING',
-  DIALOGUE: 'DIALOGUE',
   TRANSITION: 'TRANSITION',
   PAUSED: 'PAUSED',
   SETTINGS: 'SETTINGS',
@@ -211,7 +210,7 @@ export class GameManager {
   }
 
   pauseGame() {
-    if (this.state === GameState.PLAYING || this.state === GameState.DIALOGUE) {
+    if (this.state === GameState.PLAYING) {
       this.state = GameState.PAUSED;
       this.input.flush();
       this.ui.showPauseModal();
@@ -237,6 +236,7 @@ export class GameManager {
     const fresh = SaveManager.reset();
     Object.assign(this.saveData, fresh);
     this.cave.resetPuzzle();
+    this.level.syncGates();
     this.ui.updateKeys(this.saveData.simpleKey, this.saveData.bossKey);
     this.ui.hideSettings();
     this.respawnPlayer();
@@ -278,7 +278,6 @@ export class GameManager {
     this.ui.hideQuitModal();
     this.ui.hideQuitGoodbye();
     this.ui.hideInteractionPrompt();
-    this.ui.hideDialogue();
     this.input.flush();
     this.state = GameState.PLAYING;
   }
@@ -293,7 +292,6 @@ export class GameManager {
     this.state = GameState.TRANSITION;
     this.input.flush();
     this.ui.hideInteractionPrompt();
-    this.ui.hideDialogue();
 
     // 1. Fondu progressif vers le noir complet
     await this.ui.fadeToBlack(380);
@@ -389,8 +387,6 @@ export class GameManager {
         // En transition : figer le joueur mais continuer le rendu propre
       } else if (this.state === GameState.PLAYING) {
         this.updatePlaying(dt);
-      } else if (this.state === GameState.DIALOGUE) {
-        this.updateDialogue(dt);
       } else if (this.state === GameState.PAUSED) {
         if (this.input.consumePause()) {
           this.resumeGame();
@@ -485,11 +481,6 @@ export class GameManager {
       this.level.update(dt, this.player);
     } else if (this.currentZone === 'cavern') {
       this.cave.update(dt, this.player, this.cameraManager, this.audio, this.collision);
-      const caveNotif = this.cave.consumeNotification();
-      if (caveNotif) {
-        this.openDialogue(caveNotif);
-        return;
-      }
     }
 
     // G. Mise à jour de la caméra intelligente semi-contrainte
@@ -505,7 +496,7 @@ export class GameManager {
       dt
     );
 
-    // H. Détection des interactions environnementales (Portes, Panneau, Stèle, Coffre de caverne)
+    // H. Détection des interactions environnementales (Coffre, Grille Ouest)
     const nearest = this.currentZone === 'plaine'
       ? this.level.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
       : this.cave.getNearestInteractable(this.player.getPosition(), this.player.facingAngle);
@@ -513,9 +504,12 @@ export class GameManager {
     if (nearest) {
       this.ui.updateInteractionPrompt(nearest.position, nearest.promptText);
 
-      // Si le joueur appuie sur [E] ou [Espace] (hors combat)
+      // Si le joueur appuie sur [E]
       if (this.input.consumeInteract()) {
-        this.openDialogue(nearest);
+        if (typeof nearest.onInteract === 'function') {
+          nearest.onInteract();
+        }
+        this.ui.hideInteractionPrompt();
       }
     } else {
       this.ui.hideInteractionPrompt();
@@ -525,43 +519,5 @@ export class GameManager {
     this.ui.updateHealth(this.player.health);
     this.ui.updateLightGauge(this.player.lightGauge, this.player.isTorchMode);
     this.ui.updateKeys(this.saveData.simpleKey, this.saveData.bossKey);
-  }
-
-  updateDialogue(dt) {
-    // La caméra continue de cadrer la scène et peut pivoter
-    if (this.input.consumeRecenter()) {
-      this.cameraManager.recenter(this.player.facingAngle);
-    }
-    const cameraInput = this.input.consumeCameraInput();
-    this.cameraManager.update(
-      this.player.getPosition(),
-      this.player.facingAngle,
-      false,
-      cameraInput,
-      dt
-    );
-
-    // [E] ou [Espace] pour fermer / avancer le dialogue
-    if (this.input.consumeInteract() || this.input.consumeAttack()) {
-      this.closeDialogue();
-    }
-  }
-
-  openDialogue(interactable) {
-    if (typeof interactable.onInteract === 'function') {
-      interactable.onInteract();
-    }
-    this.state = GameState.DIALOGUE;
-    this.ui.hideInteractionPrompt();
-
-    const text = typeof interactable.getText === 'function' ? interactable.getText() : interactable.text;
-    this.audio.playDialogueLetter();
-    this.ui.showDialogue(interactable.speaker || 'Mystère', text);
-  }
-
-  closeDialogue() {
-    this.ui.hideDialogue();
-    this.input.flush();
-    this.state = GameState.PLAYING;
   }
 }
