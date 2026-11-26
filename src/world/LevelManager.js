@@ -527,7 +527,7 @@ export class LevelManager {
     // 1. Buissons tranchables
     this.bushes.forEach(bush => {
       if (!bush.isCut) {
-        const hit = weapon.checkHit(playerPos, playerFacingAngle, bush.getPosition(), bush.radius);
+        const hit = weapon.checkHit(playerPos, playerFacingAngle, bush.getPosition(), bush.radius, weapon.isRollSlashing);
         if (hit) {
           bush.cut(heartPickup => {
             this.pickups.push(heartPickup);
@@ -539,7 +539,7 @@ export class LevelManager {
     // 2. Buissons épineux
     this.thornBushes.forEach(thornBush => {
       if (!thornBush.isCut) {
-        const hit = weapon.checkHit(playerPos, playerFacingAngle, thornBush.getPosition(), thornBush.radius);
+        const hit = weapon.checkHit(playerPos, playerFacingAngle, thornBush.getPosition(), thornBush.radius, weapon.isRollSlashing);
         if (hit) {
           thornBush.cut();
         }

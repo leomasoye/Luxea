@@ -99,10 +99,10 @@ export class BreakableRock {
     if (this.isBroken || this.hitCooldown > 0) return false;
     if (Math.abs(playerPos.y - this.position.y) > 1.2) return false;
 
-    const hit = weapon.checkHit(playerPos, playerFacingAngle, this.position, this.radius);
+    const hit = weapon.checkHit(playerPos, playerFacingAngle, this.position, this.radius, weapon.isRollSlashing);
     if (!hit) return false;
 
-    this.health -= 1;
+    this.health -= (weapon.damage || 1);
     this.hitCooldown = 0.30;
     this.shakeTimer = 0.22;
 

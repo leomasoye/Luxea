@@ -374,10 +374,10 @@ export class SkeletonArcher {
     // Tolérance verticale (pour éviter de frapper à travers la falaise)
     if (Math.abs(playerPos.y - this.root.position.y) > 1.3) return false;
 
-    const hit = weapon.checkHit(playerPos, playerFacingAngle, this.root.position, this.radius + 0.15);
+    const hit = weapon.checkHit(playerPos, playerFacingAngle, this.root.position, this.radius + 0.15, weapon.isRollSlashing);
     if (!hit) return false;
 
-    this.takeDamage(1, playerPos, cameraManager);
+    this.takeDamage(weapon.damage || 1, playerPos, cameraManager);
     return true;
   }
 

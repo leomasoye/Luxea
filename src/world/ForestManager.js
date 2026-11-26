@@ -7,6 +7,8 @@ import {
   PointLight
 } from '@babylonjs/core';
 import { RetroTextures } from '../rendering/RetroTextures.js';
+import { buildLegendarySwordMeshes } from '../entities/Weapon.js';
+import { SaveManager } from '../core/SaveManager.js';
 
 /**
  * ForestManager.js — La Forêt Sacrée / Bois Korogu (Zone 3, derrière la Grille Ouest).
@@ -18,8 +20,9 @@ import { RetroTextures } from '../rendering/RetroTextures.js';
  * - Performance 60 FPS : matériaux figés (freeze) et matrices gelées (freezeWorldMatrix).
  */
 export class ForestManager {
-  constructor(scene) {
+  constructor(scene, saveData = null) {
     this.scene = scene;
+    this.saveData = saveData || {};
     this.root = new TransformNode('ForestRoot', this.scene);
 
     // Espace de coordonnées de la forêt : X de -260 à -180 (centre -220), Z de -40 à 40 (centre 0)
@@ -32,12 +35,44 @@ export class ForestManager {
 
     // Collections
     this.colliders = [];
+    this.interactables = [];
     this.fireflies = [];
     this.fallingLeaves = [];
     this.pedestalMotes = [];
     this.pedestalLight = null;
     this.sunbeamMesh = null;
+    this.sunbeamMat = null;
     this.animTime = 0;
+
+    // État du rituel de l'Épée Légendaire Bleue : 'LOCKED' | 'REVEALING' | 'REVEALED' | 'PULLING' | 'OBTAINED'
+    this.swordState = this.saveData.legendarySwordObtained
+      ? 'OBTAINED'
+      : (this.saveData.legendarySwordRevealed ? 'REVEALED' : 'LOCKED');
+    this.ritualCharge = 0;          // 0 -> 1 en ~2.6s en levant l'épée dans le cercle de lumière
+    this.ritualDuration = 2.6;
+    this.revealTimer = 0;
+    this.revealDuration = 1.85;
+    this.revealSwordShown = false;
+
+    // Séquence d'extraction (galère + retrait)
+    this.pullTimer = 0;
+    this.pullDuration = 3.7;
+    this.pullBurstDone = false;
+    this.pullStartPos = new Vector3();
+    this.pullTargetPos = new Vector3();
+    this.pullFacingAngle = 0;
+    this.pullSparkTimer = 0;
+
+    // Meshes dynamiques du rituel & de l'épée dans le socle
+    this.pedestalSwordRoot = null;
+    this.pedestalSwordBaseY = 2.59;
+    this.lightCircleRing = null;
+    this.lightCircleMat = null;
+    this.haloSphere = null;
+    this.haloSphereMat = null;
+    this.haloRing1 = null;
+    this.haloRing2 = null;
+    this.haloRingMat = null;
 
     this.initMaterials();
     this.initTerrainAndPaths();
@@ -573,25 +608,108 @@ export class ForestManager {
     emblem.freezeWorldMatrix();
 
     // 4. Rayon de soleil divin (Sunbeam) traversant la canopée jusqu'au socle
-    const beamMat = new StandardMaterial('mat_pedestal_sunbeam', this.scene);
-    beamMat.diffuseColor = new Color3(1.0, 0.96, 0.72);
-    beamMat.emissiveColor = new Color3(0.95, 0.88, 0.48);
-    beamMat.alpha = 0.13;
-    beamMat.backFaceCulling = false;
-    beamMat.freeze();
+    this.sunbeamMat = new StandardMaterial('mat_pedestal_sunbeam', this.scene);
+    this.sunbeamMat.diffuseColor = new Color3(1.0, 0.96, 0.72);
+    this.sunbeamMat.emissiveColor = new Color3(0.95, 0.88, 0.48);
+    this.sunbeamMat.alpha = 0.14;
+    this.sunbeamMat.backFaceCulling = false;
 
     this.sunbeamMesh = MeshBuilder.CreateCylinder('pedestal_sunbeam', {
       height: 18.0,
       diameterTop: 2.2,
-      diameterBottom: 5.4,
+      diameterBottom: 5.8,
       tessellation: 14,
       sideOrientation: 2
     }, this.scene);
-    this.sunbeamMesh.material = beamMat;
+    this.sunbeamMesh.material = this.sunbeamMat;
     this.sunbeamMesh.position.set(0.8, 9.2, 0);
     this.sunbeamMesh.rotation.z = -0.10;
     this.sunbeamMesh.parent = pedRoot;
     this.sunbeamMesh.isPickable = false;
+
+    // 4b. Cercle de lumière sacré au sol (indique clairement la zone où lever l'épée)
+    this.lightCircleMat = new StandardMaterial('mat_pedestal_light_circle', this.scene);
+    this.lightCircleMat.diffuseColor = new Color3(1.0, 0.96, 0.68);
+    this.lightCircleMat.emissiveColor = new Color3(0.85, 0.92, 1.0);
+    this.lightCircleMat.alpha = 0.24;
+    this.lightCircleMat.backFaceCulling = false;
+
+    this.lightCircleRing = MeshBuilder.CreateDisc('pedestal_light_circle_disc', {
+      radius: 3.65,
+      tessellation: 28
+    }, this.scene);
+    this.lightCircleRing.material = this.lightCircleMat;
+    this.lightCircleRing.rotation.x = Math.PI / 2;
+    this.lightCircleRing.position.y = 0.105;
+    this.lightCircleRing.parent = pedRoot;
+    this.lightCircleRing.isPickable = false;
+
+    // 4c. Halo lumineux éblouissant 3D (sphère d'énergie + anneaux ascendants lors du rituel)
+    this.haloSphereMat = new StandardMaterial('mat_pedestal_halo_sphere', this.scene);
+    this.haloSphereMat.diffuseColor = new Color3(0.85, 0.97, 1.0);
+    this.haloSphereMat.emissiveColor = new Color3(0.75, 0.95, 1.0);
+    this.haloSphereMat.alpha = 0.0;
+    this.haloSphereMat.backFaceCulling = false;
+
+    this.haloSphere = MeshBuilder.CreateSphere('pedestal_halo_sphere', {
+      diameter: 2.0,
+      segments: 12
+    }, this.scene);
+    this.haloSphere.material = this.haloSphereMat;
+    this.haloSphere.position.set(0, 2.2, 0);
+    this.haloSphere.parent = pedRoot;
+    this.haloSphere.isPickable = false;
+    this.haloSphere.setEnabled(false);
+
+    this.haloRingMat = new StandardMaterial('mat_pedestal_halo_ring', this.scene);
+    this.haloRingMat.diffuseColor = new Color3(0.65, 0.95, 1.0);
+    this.haloRingMat.emissiveColor = new Color3(0.45, 0.90, 1.0);
+    this.haloRingMat.alpha = 0.0;
+
+    this.haloRing1 = MeshBuilder.CreateTorus('pedestal_halo_ring_1', {
+      diameter: 5.2,
+      thickness: 0.14,
+      tessellation: 24
+    }, this.scene);
+    this.haloRing1.material = this.haloRingMat;
+    this.haloRing1.position.set(0, 0.4, 0);
+    this.haloRing1.parent = pedRoot;
+    this.haloRing1.isPickable = false;
+    this.haloRing1.setEnabled(false);
+
+    this.haloRing2 = MeshBuilder.CreateTorus('pedestal_halo_ring_2', {
+      diameter: 3.4,
+      thickness: 0.11,
+      tessellation: 24
+    }, this.scene);
+    this.haloRing2.material = this.haloRingMat;
+    this.haloRing2.position.set(0, 1.2, 0);
+    this.haloRing2.parent = pedRoot;
+    this.haloRing2.isPickable = false;
+    this.haloRing2.setEnabled(false);
+
+    // 4d. Épée Légendaire Bleue plantée dans le socle (lame vers le bas, révélée après le halo)
+    this.pedestalSwordRoot = new TransformNode('PedestalLegendarySword', this.scene);
+    this.pedestalSwordRoot.position.set(0, this.pedestalSwordBaseY, 0);
+    this.pedestalSwordRoot.parent = pedRoot;
+
+    const pedSword = buildLegendarySwordMeshes(this.scene, this.pedestalSwordRoot, 'pedestal_leg_sword');
+    // Lame plantée verticalement dans l'encoche du socle, garde tournée vers l'entrée Est
+    pedSword.root.rotation.z = Math.PI;
+    pedSword.root.rotation.y = Math.PI / 2;
+    this.pedestalSwordRoot.setEnabled(this.swordState === 'REVEALED');
+
+    // Enregistrement de l'interaction [E] pour retirer l'épée légendaire du socle
+    this.interactables.push({
+      id: 'forest_legendary_sword',
+      position: new Vector3(this.pedestalPos.x, 2.2, this.pedestalPos.z),
+      radius: 2.85,
+      isAvailable: () => this.swordState === 'REVEALED',
+      promptText: "[E] Retirer l'épée légendaire",
+      onInteract: (player, cameraManager, uiManager) => {
+        this.startPullSequence(player, cameraManager, uiManager);
+      }
+    });
 
     // 5. Lumière sacrée ponctuelle au-dessus du socle
     this.pedestalLight = new PointLight(
@@ -599,8 +717,13 @@ export class ForestManager {
       new Vector3(this.pedestalPos.x, 4.2, this.pedestalPos.z),
       this.scene
     );
-    this.pedestalLight.diffuse = new Color3(1.0, 0.92, 0.62);
-    this.pedestalLight.specular = new Color3(0.8, 0.75, 0.45);
+    if (this.swordState === 'REVEALED' || this.swordState === 'OBTAINED') {
+      this.pedestalLight.diffuse = new Color3(0.45, 0.88, 1.0);
+      this.pedestalLight.specular = new Color3(0.6, 0.92, 1.0);
+    } else {
+      this.pedestalLight.diffuse = new Color3(1.0, 0.92, 0.62);
+      this.pedestalLight.specular = new Color3(0.8, 0.75, 0.45);
+    }
     this.pedestalLight.intensity = 2.2;
     this.pedestalLight.range = 19.0;
 
@@ -1356,6 +1479,171 @@ export class ForestManager {
     };
   }
 
+  /**
+   * Retourne l'élément interactif le plus proche de Zelya dans la forêt (socle de l'épée).
+   */
+  getNearestInteractable(playerPos, playerFacingAngle = null) {
+    if (!playerPos || this.swordState !== 'REVEALED') return null;
+
+    let nearest = null;
+    let minDist = Infinity;
+
+    for (let i = 0; i < this.interactables.length; i++) {
+      const item = this.interactables[i];
+      if (typeof item.isAvailable === 'function' && !item.isAvailable()) continue;
+
+      const dx = item.position.x - playerPos.x;
+      const dz = item.position.z - playerPos.z;
+      const dist = Math.hypot(dx, dz);
+
+      if (dist <= item.radius && dist < minDist) {
+        if (playerFacingAngle !== null && playerFacingAngle !== undefined && dist > 0.1) {
+          const dot = Math.sin(playerFacingAngle) * (dx / dist) + Math.cos(playerFacingAngle) * (dz / dist);
+          if (dot < -0.35) continue;
+        }
+        minDist = dist;
+        nearest = {
+          ...item,
+          promptText: typeof item.getPromptText === 'function' ? item.getPromptText() : item.promptText
+        };
+      }
+    }
+    return nearest;
+  }
+
+  /**
+   * Indique si une cinématique / séquence d'épée (halo ou extraction) verrouille les actions normales.
+   */
+  isSwordSequenceActive() {
+    return this.swordState === 'PULLING';
+  }
+
+  /**
+   * Lance la séquence d'extraction de l'Épée Légendaire Bleue du socle (galère + retrait).
+   */
+  startPullSequence(player, cameraManager = null, uiManager = null) {
+    if (this.swordState !== 'REVEALED' || !player) return;
+
+    this.swordState = 'PULLING';
+    this.pullTimer = 0;
+    this.pullBurstDone = false;
+    this.pullSparkTimer = 0;
+
+    // Calcule une position idéale juste devant le socle du côté où Zelya arrive
+    const pPos = player.getPosition();
+    let dx = pPos.x - this.pedestalPos.x;
+    let dz = pPos.z - this.pedestalPos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.05) {
+      dx = 1;
+      dz = 0;
+    } else {
+      dx /= dist;
+      dz /= dist;
+    }
+
+    this.pullStartPos.copyFrom(pPos);
+    const gripDist = 1.18;
+    this.pullTargetPos.set(
+      this.pedestalPos.x + dx * gripDist,
+      0.66,
+      this.pedestalPos.z + dz * gripDist
+    );
+    // Zelya fait face au centre du socle
+    this.pullFacingAngle = Math.atan2(-dx, -dz);
+
+    // Oriente la garde de l'épée face à Zelya pour une prise naturelle à deux mains
+    if (this.pedestalSwordRoot) {
+      this.pedestalSwordRoot.rotation.y = this.pullFacingAngle + Math.PI / 2;
+    }
+
+    player.beginSwordPull();
+    if (uiManager) {
+      uiManager.hideInteractionPrompt();
+    }
+    if (cameraManager) {
+      cameraManager.shake(0.08, 0.25);
+    }
+  }
+
+  /**
+   * Projette des étincelles bleues magiques autour du socle (révélation ou effort d'extraction).
+   */
+  spawnBlueSparks(count = 14, originY = 1.95, spread = 1.2) {
+    const sparkMat = new StandardMaterial('mat_leg_spark', this.scene);
+    sparkMat.diffuseColor = new Color3(0.55, 0.94, 1.0);
+    sparkMat.emissiveColor = new Color3(0.32, 0.85, 1.0);
+    sparkMat.specularColor = new Color3(1, 1, 1);
+
+    for (let i = 0; i < count; i++) {
+      const spark = MeshBuilder.CreateBox('leg_spark', {
+        width: 0.12,
+        height: 0.12,
+        depth: 0.12
+      }, this.scene);
+      spark.material = sparkMat;
+
+      const ang = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+      const r = 0.25 + Math.random() * 0.55;
+      spark.position.set(
+        this.pedestalPos.x + Math.cos(ang) * r,
+        originY + (Math.random() - 0.5) * 0.4,
+        this.pedestalPos.z + Math.sin(ang) * r
+      );
+
+      const vx = Math.cos(ang) * (1.2 + Math.random() * spread * 2.2);
+      const vy = 1.8 + Math.random() * 3.0;
+      const vz = Math.sin(ang) * (1.2 + Math.random() * spread * 2.2);
+      let life = 0.65 + Math.random() * 0.35;
+      const maxLife = life;
+
+      const obs = this.scene.onBeforeRenderObservable.add(() => {
+        const dt = 0.016;
+        life -= dt;
+        spark.position.x += vx * dt;
+        spark.position.y += vy * dt;
+        spark.position.z += vz * dt;
+        spark.rotation.x += 5 * dt;
+        spark.rotation.y += 6 * dt;
+
+        const s = Math.max(0.01, (life / maxLife) * 1.3);
+        spark.scaling.set(s, s, s);
+
+        if (life <= 0) {
+          this.scene.onBeforeRenderObservable.remove(obs);
+          spark.dispose();
+          if (i === count - 1 && sparkMat) sparkMat.dispose();
+        }
+      });
+    }
+  }
+
+  /**
+   * Réinitialise le rituel de l'épée légendaire (lors d'un reset de sauvegarde).
+   */
+  resetSwordEvent() {
+    this.swordState = 'LOCKED';
+    this.ritualCharge = 0;
+    this.revealTimer = 0;
+    this.revealSwordShown = false;
+    this.pullTimer = 0;
+    this.pullBurstDone = false;
+
+    if (this.pedestalSwordRoot) {
+      this.pedestalSwordRoot.position.set(0, this.pedestalSwordBaseY, 0);
+      this.pedestalSwordRoot.rotation.set(0, 0, 0);
+      this.pedestalSwordRoot.setEnabled(false);
+    }
+    if (this.haloSphere) this.haloSphere.setEnabled(false);
+    if (this.haloRing1) this.haloRing1.setEnabled(false);
+    if (this.haloRing2) this.haloRing2.setEnabled(false);
+    if (this.pedestalLight) {
+      this.pedestalLight.diffuse = new Color3(1.0, 0.92, 0.62);
+      this.pedestalLight.specular = new Color3(0.8, 0.75, 0.45);
+      this.pedestalLight.intensity = 2.2;
+    }
+  }
+
   setEnabled(enabled) {
     if (this.root) {
       this.root.setEnabled(enabled);
@@ -1365,7 +1653,7 @@ export class ForestManager {
     }
   }
 
-  update(dt) {
+  update(dt, player = null, cameraManager = null, uiManager = null) {
     if (!this.root.isEnabled()) return;
 
     this.animTime += dt;
@@ -1400,22 +1688,314 @@ export class ForestManager {
       }
     }
 
-    // 3. Poussières sacrées autour du Socle de l'Épée Légendaire
+    // 3. Poussières sacrées autour du Socle de l'Épée Légendaire (accélèrent pendant le rituel)
+    const moteBoost = 1.0 + this.ritualCharge * 3.8 + (this.swordState === 'PULLING' ? 2.5 : 0);
     for (let i = 0; i < this.pedestalMotes.length; i++) {
       const m = this.pedestalMotes[i];
-      m.angle += m.orbitSpeed * dt;
-      m.y += m.riseSpeed * dt;
-      if (m.y > 6.0) m.y = 0.5;
+      m.angle += m.orbitSpeed * moteBoost * dt;
+      m.y += m.riseSpeed * moteBoost * dt;
+      if (m.y > 6.5) m.y = 0.5;
 
-      m.mesh.position.x = this.pedestalPos.x + Math.cos(m.angle) * m.radius;
+      const rScale = this.swordState === 'LOCKED' ? (1.0 - this.ritualCharge * 0.35) : 1.0;
+      m.mesh.position.x = this.pedestalPos.x + Math.cos(m.angle) * m.radius * rScale;
       m.mesh.position.y = m.y;
-      m.mesh.position.z = this.pedestalPos.z + Math.sin(m.angle) * m.radius;
-      m.mesh.rotation.y += dt * 2.0;
+      m.mesh.position.z = this.pedestalPos.z + Math.sin(m.angle) * m.radius * rScale;
+      m.mesh.rotation.y += dt * 2.0 * moteBoost;
     }
 
-    // 4. Respiration subtile de la lumière du socle
-    if (this.pedestalLight) {
-      this.pedestalLight.intensity = 2.1 + Math.sin(this.animTime * 2.0) * 0.25;
+    // 4. Machine à états du Rituel de la Lumière & de l'Épée Légendaire Bleue
+    this.updateSwordRitual(dt, player, cameraManager, uiManager);
+  }
+
+  updateSwordRitual(dt, player, cameraManager, uiManager) {
+    // --- ÉTAT 1 : LOCKED (Attente que Zelya lève son épée dans le cercle de lumière) ---
+    if (this.swordState === 'LOCKED') {
+      let inLightCircle = false;
+      let raisingSword = false;
+
+      if (player) {
+        const pPos = player.getPosition();
+        const dist = Math.hypot(pPos.x - this.pedestalPos.x, pPos.z - this.pedestalPos.z);
+        inLightCircle = dist <= 3.85;
+        raisingSword = inLightCircle && player.isTorchMode && !player.isDodgeRolling && !player.isKnockedBack;
+      }
+
+      if (raisingSword) {
+        this.ritualCharge = Math.min(1.0, this.ritualCharge + dt / this.ritualDuration);
+
+        // Légère vibration croissante de la caméra et du sol
+        if (cameraManager && this.ritualCharge > 0.25) {
+          cameraManager.shake(0.03 + this.ritualCharge * 0.11, 0.12);
+        }
+
+        // Déclenchement du halo éblouissant dès que la charge atteint 100%
+        if (this.ritualCharge >= 1.0) {
+          this.swordState = 'REVEALING';
+          this.revealTimer = 0;
+          this.revealSwordShown = false;
+          if (cameraManager) {
+            cameraManager.shake(0.20, 0.55);
+          }
+          return;
+        }
+      } else {
+        // Décroissance douce si le joueur baisse l'épée ou sort du cercle
+        this.ritualCharge = Math.max(0, this.ritualCharge - dt * 0.65);
+      }
+
+      // Feedback visuel du cercle de lumière et du rayon solaire
+      const pulse = 0.5 + 0.5 * Math.sin(this.animTime * (inLightCircle ? 4.5 : 2.2));
+      if (this.lightCircleMat) {
+        this.lightCircleMat.alpha = 0.16 + pulse * 0.08 + (inLightCircle ? 0.14 : 0) + this.ritualCharge * 0.52;
+      }
+      if (this.sunbeamMat) {
+        this.sunbeamMat.alpha = 0.14 + this.ritualCharge * 0.48;
+      }
+      if (this.sunbeamMesh) {
+        const beamScale = 1.0 + this.ritualCharge * 0.55;
+        this.sunbeamMesh.scaling.set(beamScale, 1.0, beamScale);
+      }
+
+      // Anneaux et sphère d'énergie montant autour du socle pendant la charge
+      if (this.ritualCharge > 0.02) {
+        if (this.haloRing1) {
+          this.haloRing1.setEnabled(true);
+          this.haloRing1.position.y = 0.35 + ((this.animTime * 1.8) % 3.4);
+          const s1 = 1.15 - this.ritualCharge * 0.35;
+          this.haloRing1.scaling.set(s1, s1, s1);
+          this.haloRing1.rotation.y += dt * (2.5 + this.ritualCharge * 5.0);
+        }
+        if (this.haloRing2) {
+          this.haloRing2.setEnabled(true);
+          this.haloRing2.position.y = 0.35 + (((this.animTime * 1.8) + 1.7) % 3.4);
+          const s2 = 0.85 + this.ritualCharge * 0.55;
+          this.haloRing2.scaling.set(s2, s2, s2);
+          this.haloRing2.rotation.y -= dt * (3.2 + this.ritualCharge * 6.0);
+        }
+        if (this.haloRingMat) {
+          this.haloRingMat.alpha = Math.min(0.9, this.ritualCharge * 0.95);
+        }
+        if (this.haloSphere && this.haloSphereMat) {
+          this.haloSphere.setEnabled(true);
+          const s = 0.4 + this.ritualCharge * 2.4;
+          this.haloSphere.scaling.set(s, s, s);
+          this.haloSphereMat.alpha = this.ritualCharge * 0.55;
+        }
+      } else {
+        if (this.haloRing1) this.haloRing1.setEnabled(false);
+        if (this.haloRing2) this.haloRing2.setEnabled(false);
+        if (this.haloSphere) this.haloSphere.setEnabled(false);
+      }
+
+      if (this.pedestalLight) {
+        this.pedestalLight.intensity = 2.1 + Math.sin(this.animTime * 2.0) * 0.25 + this.ritualCharge * 13.0;
+        const c = this.ritualCharge;
+        this.pedestalLight.diffuse.set(1.0 - c * 0.25, 0.92 + c * 0.06, 0.62 + c * 0.38);
+      }
+      if (uiManager) {
+        uiManager.setLightHaloIntensity(this.ritualCharge * 0.22);
+      }
+    }
+
+    // --- ÉTAT 2 : REVEALING (Halo lumineux éblouissant -> Révélation de l'Épée Bleue) ---
+    else if (this.swordState === 'REVEALING') {
+      this.revealTimer += dt;
+      const t = Math.min(1.0, this.revealTimer / this.revealDuration);
+
+      // Courbe du flash éblouissant : montée fulgurante (0 -> 0.28), pic blanc pur (0.28 -> 0.45), dissipation (0.45 -> 1.0)
+      let flashAlpha = 0;
+      if (t < 0.28) {
+        flashAlpha = t / 0.28;
+      } else if (t < 0.45) {
+        flashAlpha = 1.0;
+      } else {
+        flashAlpha = Math.max(0, 1.0 - (t - 0.45) / 0.55);
+      }
+
+      if (uiManager) {
+        uiManager.setLightHaloIntensity(flashAlpha);
+      }
+
+      // Expansion spectaculaire du halo 3D autour du socle
+      if (this.haloSphere && this.haloSphereMat) {
+        this.haloSphere.setEnabled(true);
+        const s = 2.6 + t * 14.0;
+        this.haloSphere.scaling.set(s, s, s);
+        this.haloSphereMat.alpha = flashAlpha * 0.92;
+      }
+      if (this.haloRing1 && this.haloRing2 && this.haloRingMat) {
+        const ringExpand = 1.0 + t * 3.5;
+        this.haloRing1.scaling.set(ringExpand, ringExpand, ringExpand);
+        this.haloRing2.scaling.set(ringExpand * 1.25, ringExpand * 1.25, ringExpand * 1.25);
+        this.haloRingMat.alpha = flashAlpha * 0.85;
+      }
+      if (this.pedestalLight) {
+        this.pedestalLight.intensity = 2.6 + flashAlpha * 24.0;
+        this.pedestalLight.diffuse.set(0.65 + flashAlpha * 0.35, 0.92 + flashAlpha * 0.08, 1.0);
+      }
+
+      // Au pic de l'éblouissement, l'Épée Légendaire Bleue apparaît dans le socle !
+      if (!this.revealSwordShown && t >= 0.36) {
+        this.revealSwordShown = true;
+        if (this.pedestalSwordRoot) {
+          this.pedestalSwordRoot.position.set(0, this.pedestalSwordBaseY, 0);
+          this.pedestalSwordRoot.setEnabled(true);
+        }
+        this.saveData.legendarySwordRevealed = true;
+        SaveManager.save(this.saveData);
+        this.spawnBlueSparks(22, 2.2, 1.5);
+      }
+
+      if (t >= 1.0) {
+        this.swordState = 'REVEALED';
+        this.ritualCharge = 0;
+        if (this.haloSphere) this.haloSphere.setEnabled(false);
+        if (this.haloRing1) this.haloRing1.setEnabled(false);
+        if (this.haloRing2) this.haloRing2.setEnabled(false);
+        if (this.sunbeamMesh) this.sunbeamMesh.scaling.set(1, 1, 1);
+        if (this.sunbeamMat) {
+          this.sunbeamMat.alpha = 0.16;
+          this.sunbeamMat.diffuseColor = new Color3(0.65, 0.92, 1.0);
+          this.sunbeamMat.emissiveColor = new Color3(0.35, 0.78, 1.0);
+        }
+        if (uiManager) uiManager.setLightHaloIntensity(0);
+      }
+    }
+
+    // --- ÉTAT 3 : REVEALED (Épée Bleue rayonnante dans le socle, prête à être retirée avec [E]) ---
+    else if (this.swordState === 'REVEALED') {
+      if (this.pedestalLight) {
+        this.pedestalLight.diffuse.set(0.45, 0.88, 1.0);
+        this.pedestalLight.intensity = 2.8 + Math.sin(this.animTime * 2.8) * 0.45;
+      }
+      if (this.lightCircleMat) {
+        this.lightCircleMat.alpha = 0.20 + Math.sin(this.animTime * 2.4) * 0.06;
+        this.lightCircleMat.emissiveColor.set(0.30, 0.78, 1.0);
+      }
+    }
+
+    // --- ÉTAT 4 : PULLING (Animation spécifique & quelques secondes de galère pour retirer l'épée) ---
+    else if (this.swordState === 'PULLING') {
+      this.pullTimer += dt;
+      const t = Math.min(1.0, this.pullTimer / this.pullDuration);
+
+      // Phase A : Mise en place et prise en main (0.0 -> 0.45s)
+      if (this.pullTimer < 0.45) {
+        const p = this.pullTimer / 0.45;
+        const ease = 1.0 - Math.pow(1.0 - p, 2.0);
+        if (player) {
+          const curX = this.pullStartPos.x + (this.pullTargetPos.x - this.pullStartPos.x) * ease;
+          const curY = this.pullStartPos.y + (this.pullTargetPos.y - this.pullStartPos.y) * ease;
+          const curZ = this.pullStartPos.z + (this.pullTargetPos.z - this.pullStartPos.z) * ease;
+          player.setPosition(curX, curY, curZ);
+          player.facingAngle = this.pullFacingAngle;
+          player.targetFacingAngle = this.pullFacingAngle;
+          player.updateSwordPullPose('GRIP', ease, 0);
+        }
+      }
+      // Phase B : Quelques secondes de galère / 3 grandes secousses d'extraction (0.45s -> 2.75s)
+      else if (this.pullTimer < 2.75) {
+        const struggleDuration = 2.30;
+        const sp = (this.pullTimer - 0.45) / struggleDuration; // 0 -> 1
+
+        // 3 impulsions d'effort soutenu avec tremblement musculaire
+        const heaveWave = Math.pow(Math.abs(Math.sin(sp * Math.PI * 3.0)), 0.75);
+        const strain = 0.45 + 0.55 * heaveWave;
+
+        // L'épée sort progressivement par à-coups du socle (de 0 à +0.78m)
+        const riseProgress = Math.min(1.0, sp * 0.85 + Math.sin(sp * Math.PI * 3.0) * 0.05);
+        if (this.pedestalSwordRoot) {
+          const jitterX = (Math.random() - 0.5) * 0.045 * strain;
+          const jitterZ = (Math.random() - 0.5) * 0.045 * strain;
+          this.pedestalSwordRoot.position.set(
+            jitterX,
+            this.pedestalSwordBaseY + riseProgress * 0.78,
+            jitterZ
+          );
+        }
+
+        if (player) {
+          player.setPosition(this.pullTargetPos.x, this.pullTargetPos.y, this.pullTargetPos.z);
+          player.facingAngle = this.pullFacingAngle;
+          player.updateSwordPullPose('STRUGGLE', sp, strain);
+        }
+
+        // Secousse de caméra rythmée sur l'effort
+        if (cameraManager && heaveWave > 0.65) {
+          cameraManager.shake(0.06 + sp * 0.08, 0.10);
+        }
+
+        // Étincelles bleues jaillissant de l'encoche pendant l'effort
+        this.pullSparkTimer -= dt;
+        if (this.pullSparkTimer <= 0) {
+          this.pullSparkTimer = 0.22;
+          this.spawnBlueSparks(5, 1.9, 0.9);
+        }
+
+        // Montée de la lueur du socle
+        if (this.pedestalLight) {
+          this.pedestalLight.intensity = 3.2 + sp * 9.5 + heaveWave * 3.0;
+          this.pedestalLight.diffuse.set(0.45 + sp * 0.35, 0.88 + sp * 0.10, 1.0);
+        }
+        if (uiManager) {
+          uiManager.setLightHaloIntensity(sp * 0.25 * heaveWave);
+        }
+      }
+      // Phase C : Extraction finale & Triomphe (2.75s -> 3.70s)
+      else {
+        const tp = Math.min(1.0, (this.pullTimer - 2.75) / 0.95);
+
+        if (!this.pullBurstDone) {
+          this.pullBurstDone = true;
+          // L'épée quitte le socle et remplace instantanément l'ancienne épée de Zelya !
+          if (this.pedestalSwordRoot) {
+            this.pedestalSwordRoot.setEnabled(false);
+          }
+          if (player) {
+            player.equipLegendarySword(false);
+          }
+          this.saveData.legendarySwordRevealed = true;
+          this.saveData.legendarySwordObtained = true;
+          SaveManager.save(this.saveData);
+
+          this.spawnBlueSparks(28, 2.5, 1.8);
+          if (cameraManager) {
+            cameraManager.shake(0.22, 0.35);
+          }
+        }
+
+        if (player) {
+          player.updateSwordPullPose('TRIUMPH', tp, 0);
+        }
+        if (uiManager) {
+          const flash = Math.max(0, 1.0 - tp * 2.2) * 0.75;
+          uiManager.setLightHaloIntensity(flash);
+        }
+        if (this.pedestalLight) {
+          this.pedestalLight.intensity = 2.0 + Math.max(0, 1.0 - tp) * 14.0;
+        }
+      }
+
+      if (t >= 1.0) {
+        this.swordState = 'OBTAINED';
+        if (player) {
+          player.endSwordPull();
+        }
+        if (uiManager) {
+          uiManager.setLightHaloIntensity(0);
+        }
+      }
+    }
+
+    // --- ÉTAT 5 : OBTAINED (Socle apaisé d'une douce lueur bleue) ---
+    else if (this.swordState === 'OBTAINED') {
+      if (this.pedestalLight) {
+        this.pedestalLight.diffuse.set(0.45, 0.85, 1.0);
+        this.pedestalLight.intensity = 1.9 + Math.sin(this.animTime * 1.8) * 0.2;
+      }
+      if (this.lightCircleMat) {
+        this.lightCircleMat.alpha = 0.10 + Math.sin(this.animTime * 1.6) * 0.03;
+      }
     }
   }
 

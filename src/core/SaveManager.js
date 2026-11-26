@@ -24,6 +24,8 @@ export class SaveManager {
         bossKey: !!state.bossKey,
         westGateOpen: !!state.westGateOpen,
         northGateOpen: !!state.northGateOpen,
+        legendarySwordRevealed: !!state.legendarySwordRevealed,
+        legendarySwordObtained: !!state.legendarySwordObtained,
         savedAt: Date.now()
       };
       localStorage.setItem(SaveManager.STORAGE_KEY, JSON.stringify(data));
@@ -46,7 +48,9 @@ export class SaveManager {
       simpleKey: false,
       bossKey: false,
       westGateOpen: false,
-      northGateOpen: false
+      northGateOpen: false,
+      legendarySwordRevealed: false,
+      legendarySwordObtained: false
     };
   }
 }

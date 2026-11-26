@@ -165,7 +165,7 @@ export class TrainingDummy {
   checkSwordHit(playerPos, playerFacingAngle, weapon, cameraManager = null) {
     if (this.hitCooldown > 0) return false;
 
-    const hit = weapon.checkHit(playerPos, playerFacingAngle, this.root.position, this.radius);
+    const hit = weapon.checkHit(playerPos, playerFacingAngle, this.root.position, this.radius, weapon.isRollSlashing);
     if (!hit) return false;
 
     this.hitCooldown = 0.20;
@@ -177,10 +177,8 @@ export class TrainingDummy {
     const nx = dx / dist;
     const nz = dz / dist;
 
-    // Impulsion angulaire proportionnelle à l'impact
-    // Une force vers +Z incline l'axe X vers l'avant (+X)
-    // Une force vers +X incline l'axe Z vers la gauche (-Z)
-    const impactForce = 8.8;
+    // Impulsion angulaire proportionnelle à l'impact (plus forte avec l'Épée Légendaire)
+    const impactForce = weapon.isLegendary ? 12.8 : 8.8;
     this.velX += nz * impactForce;
     this.velZ += -nx * impactForce;
 

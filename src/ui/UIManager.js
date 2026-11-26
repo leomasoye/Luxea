@@ -19,6 +19,8 @@ export class UIManager {
       document.getElementById('heart-2')
     ];
     this.lightBarFill = document.getElementById('light-bar-fill');
+    this.lightBarFrame = this.lightBarFill ? this.lightBarFill.parentElement : null;
+    this.hasLegendarySwordUI = false;
     this.iconSimpleKey = document.getElementById('icon-simple-key');
     this.iconBossKey = document.getElementById('icon-boss-key');
 
@@ -58,6 +60,7 @@ export class UIManager {
     this.btnRespawn = document.getElementById('btn-respawn');
 
     this.screenFade = document.getElementById('screen-fade');
+    this.lightHaloFlash = document.getElementById('light-halo-flash');
 
     this.devStats = document.getElementById('dev-stats');
 
@@ -155,13 +158,38 @@ export class UIManager {
     });
   }
 
+  /**
+   * Adapte visuellement la jauge de lumière pour l'Épée Légendaire Bleue (barre plus longue et bleue).
+   */
+  setLegendarySwordUI(enabled) {
+    this.hasLegendarySwordUI = !!enabled;
+    if (this.lightBarFrame) {
+      this.lightBarFrame.classList.toggle('legendary-bar', this.hasLegendarySwordUI);
+    }
+  }
+
+  /**
+   * Pilote l'intensité du halo lumineux éblouissant plein écran (0.0 à 1.0).
+   */
+  setLightHaloIntensity(alpha) {
+    if (!this.lightHaloFlash) return;
+    const clamped = Math.max(0, Math.min(1, alpha || 0));
+    this.lightHaloFlash.style.opacity = `${clamped}`;
+  }
+
   // Met à jour la jauge de lumière de l'épée (0.0 à 1.0)
   updateLightGauge(ratio, isTorchMode) {
     if (!this.lightBarFill) return;
     const clampedRatio = Math.max(0, Math.min(1, ratio));
     this.lightBarFill.style.width = `${clampedRatio * 100}%`;
 
-    if (isTorchMode) {
+    if (this.hasLegendarySwordUI) {
+      if (isTorchMode) {
+        this.lightBarFill.style.background = 'repeating-linear-gradient(90deg, #ffffff 0px, #ffffff 7px, #63e6ff 7px, #63e6ff 8px)';
+      } else {
+        this.lightBarFill.style.background = 'repeating-linear-gradient(90deg, #4cc9ff 0px, #4cc9ff 7px, #1b82e6 7px, #1b82e6 8px)';
+      }
+    } else if (isTorchMode) {
       this.lightBarFill.style.background = 'repeating-linear-gradient(90deg, #ffffff 0px, #ffffff 7px, #ffe066 7px, #ffe066 8px)';
     } else {
       this.lightBarFill.style.background = 'repeating-linear-gradient(90deg, #ffe066 0px, #ffe066 7px, #e5a800 7px, #e5a800 8px)';

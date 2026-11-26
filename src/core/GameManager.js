@@ -56,7 +56,7 @@ export class GameManager {
     this.environment = new EnvironmentManager(this.scene);
     this.level = new LevelManager(this.scene, this.audio, this.saveData);
     this.cave = new CaveManager(this.scene, this.saveData);
-    this.forest = new ForestManager(this.scene);
+    this.forest = new ForestManager(this.scene, this.saveData);
 
     // Initialisation des hitboxes (murs, falaises, arbres, buissons, panneau, portes, caverne, forêt)
     this.environment.initColliders(this.collision);
@@ -71,6 +71,9 @@ export class GameManager {
     this.player = new Player(this.scene, this.audio, this.lightingManager, this.cameraManager, this.collision);
     this.ui = new UIManager(this.scene);
     this.player.setUIManager(this.ui);
+    if (this.saveData.legendarySwordObtained) {
+      this.player.equipLegendarySword(true);
+    }
     this.previousState = GameState.TITLE;
 
     // Initialisation des liaisons d'événements UI
@@ -257,6 +260,8 @@ export class GameManager {
     const fresh = SaveManager.reset();
     Object.assign(this.saveData, fresh);
     this.cave.resetPuzzle();
+    this.forest.resetSwordEvent();
+    this.player.resetToDefaultSword();
     this.level.syncGates();
     this.ui.updateKeys(this.saveData.simpleKey, this.saveData.bossKey);
     this.ui.hideSettings();
@@ -296,7 +301,8 @@ export class GameManager {
       this.cameraManager.snapTo(this.player.getPosition(), -Math.PI / 2);
     }
     this.ui.updateHealth(this.player.health);
-    this.ui.updateLightGauge(this.player.lightGauge, false);
+    this.ui.updateLightGauge(this.player.getLightGaugeRatio(), false);
+    this.ui.setLightHaloIntensity(0);
     this.ui.hideGameOver();
     this.ui.hidePauseModal();
     this.ui.hideSettings();
@@ -317,6 +323,7 @@ export class GameManager {
     this.state = GameState.TRANSITION;
     this.input.flush();
     this.ui.hideInteractionPrompt();
+    this.ui.setLightHaloIntensity(0);
 
     // 1. Fondu progressif vers le noir complet
     await this.ui.fadeToBlack(380);
@@ -542,6 +549,26 @@ export class GameManager {
     // D. Mise à jour du joueur
     this.player.update(this.input, dt);
 
+    // D2. Impact du coup d'épée pendant la roulade (Épée Légendaire Bleue)
+    if (this.player.consumeRollSlashHit()) {
+      if (this.currentZone === 'plaine') {
+        this.level.checkSwordHits(
+          this.player.getPosition(),
+          this.player.facingAngle,
+          this.player.weapon,
+          this.cameraManager
+        );
+      } else if (this.currentZone === 'cavern') {
+        this.cave.checkSwordHits(
+          this.player.getPosition(),
+          this.player.facingAngle,
+          this.player.weapon,
+          this.cameraManager,
+          this.audio
+        );
+      }
+    }
+
     // E. Vérification de défaite (Game Over)
     if (this.player.health <= 0) {
       this.gameOver();
@@ -554,7 +581,7 @@ export class GameManager {
     } else if (this.currentZone === 'cavern') {
       this.cave.update(dt, this.player, this.cameraManager, this.audio, this.collision);
     } else if (this.currentZone === 'forest') {
-      this.forest.update(dt);
+      this.forest.update(dt, this.player, this.cameraManager, this.ui);
     }
 
     // G. Mise à jour de la caméra intelligente semi-contrainte
@@ -570,12 +597,14 @@ export class GameManager {
       dt
     );
 
-    // H. Détection des interactions environnementales (Coffre, Grille Ouest)
+    // H. Détection des interactions environnementales (Coffre, Grille Ouest, Socle de l'Épée Légendaire)
     const nearest = this.currentZone === 'plaine'
       ? this.level.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
       : this.currentZone === 'cavern'
         ? this.cave.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
-        : null;
+        : this.currentZone === 'forest'
+          ? this.forest.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
+          : null;
 
     if (nearest) {
       this.ui.updateInteractionPrompt(nearest.position, nearest.promptText);
@@ -583,7 +612,7 @@ export class GameManager {
       // Si le joueur appuie sur [E]
       if (this.input.consumeInteract()) {
         if (typeof nearest.onInteract === 'function') {
-          nearest.onInteract();
+          nearest.onInteract(this.player, this.cameraManager, this.ui);
         }
         this.ui.hideInteractionPrompt();
       }
@@ -593,7 +622,7 @@ export class GameManager {
 
     // I. Mise à jour de l'UI (HUD)
     this.ui.updateHealth(this.player.health);
-    this.ui.updateLightGauge(this.player.lightGauge, this.player.isTorchMode);
+    this.ui.updateLightGauge(this.player.getLightGaugeRatio(), this.player.isTorchMode);
     this.ui.updateKeys(this.saveData.simpleKey, this.saveData.bossKey);
   }
 }

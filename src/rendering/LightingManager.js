@@ -36,6 +36,9 @@ export class LightingManager {
     this.torchRange = 22.0;
     this.currentRange = 9.5;
 
+    // Épée Légendaire Bleue : lumière plus puissante et d'intensité constante dans le temps
+    this.isLegendarySword = false;
+
     this.init();
   }
 
@@ -149,6 +152,22 @@ export class LightingManager {
     }
   }
 
+  /**
+   * Active ou désactive l'éclairage de l'Épée Légendaire Bleue (plus puissant, teinte céleste, intensité constante).
+   */
+  setLegendarySword(enabled) {
+    this.isLegendarySword = !!enabled;
+    if (!this.swordLight) return;
+
+    if (this.isLegendarySword) {
+      this.swordLight.diffuse = new Color3(0.48, 0.86, 1.0); // Éclat azur céleste
+      this.swordLight.specular = new Color3(0.75, 0.96, 1.0);
+    } else {
+      this.swordLight.diffuse = new Color3(1.0, 0.88, 0.52); // Or chaleureux classique
+      this.swordLight.specular = new Color3(0.8, 0.7, 0.35);
+    }
+  }
+
   // Met à jour la position et l'intensité de la lumière de l'épée selon la jauge et le mode torche
   update(swordWorldPos, lightGaugeRatio, isTorchMode, isSlashing, dt) {
     if (!this.swordLight || !swordWorldPos) return;
@@ -156,17 +175,26 @@ export class LightingManager {
     // Suivi de la pointe de l'épée
     this.swordLight.position.copyFrom(swordWorldPos);
 
-    // Calcul de l'intensité cible selon la jauge de lumière (0.0 à 1.0)
-    let desiredIntensity = this.baseSwordIntensity * lightGaugeRatio;
-    let desiredRange = this.baseRange * (0.45 + 0.55 * lightGaugeRatio);
+    let desiredIntensity;
+    let desiredRange;
 
-    if (isTorchMode) {
-      // Mode Torche : l'épée brandie perce la brume et éclaire toute la zone lointaine
-      desiredIntensity = this.torchSwordIntensity * lightGaugeRatio;
-      desiredRange = this.torchRange * lightGaugeRatio;
+    if (this.isLegendarySword) {
+      // Épée Légendaire : lumière nettement plus puissante et d'intensité CONSTANTE (ne diminue pas avec le temps)
+      desiredIntensity = isTorchMode ? this.torchSwordIntensity * 1.45 : this.baseSwordIntensity * 1.45;
+      desiredRange = isTorchMode ? this.torchRange * 1.35 : this.baseRange * 1.35;
+    } else {
+      // Épée de départ : l'intensité dépend de la jauge restante et faiblit avec le temps
+      desiredIntensity = this.baseSwordIntensity * lightGaugeRatio;
+      desiredRange = this.baseRange * (0.45 + 0.55 * lightGaugeRatio);
+
+      if (isTorchMode) {
+        // Mode Torche : l'épée brandie perce la brume et éclaire toute la zone lointaine
+        desiredIntensity = this.torchSwordIntensity * lightGaugeRatio;
+        desiredRange = this.torchRange * lightGaugeRatio;
+      }
     }
 
-    // Flash lumineux spectaculaire lors d'une frappe à l'épée
+    // Flash lumineux spectaculaire lors d'une frappe à l'épée (ou roulade tranchante)
     if (isSlashing) {
       desiredIntensity *= 1.6;
       desiredRange *= 1.25;

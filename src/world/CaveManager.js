@@ -1208,7 +1208,7 @@ export class CaveManager {
     for (let i = this.arrows.length - 1; i >= 0; i--) {
       const arrow = this.arrows[i];
       if (!arrow.isAlive) continue;
-      if (weapon.checkHit(playerPos, playerFacingAngle, arrow.position, 0.55)) {
+      if (weapon.checkHit(playerPos, playerFacingAngle, arrow.position, 0.55, weapon.isRollSlashing)) {
         arrow.destroy(true);
         anyHit = true;
       }

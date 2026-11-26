@@ -97,11 +97,17 @@ export class Player {
     this.health = 6;
     this.invulnerableTimer = 0;
 
-    // Jauge de Lumière de l'Épée (0.0 à 1.0)
+    // Jauge de Lumière de l'Épée (0.0 à maxLightGauge)
+    this.hasLegendarySword = false;
+    this.maxLightGauge = 1.0;
     this.lightGauge = 1.0;
     this.isTorchMode = false;
     this.torchRechargeRate = 0.12; // Rechargement à la lumière du soleil dans la plaine
     this.torchDrainRate = 0.08;
+
+    // État d'animation spécifique : extraction de l'Épée Légendaire & coup d'épée en roulade
+    this.isPullingSword = false;
+    this.pendingRollSlashHit = false;
 
     // Bornes de collision de la plaine (couvrent l'ensemble du terrain jusqu'aux falaises)
     this.bounds = {
@@ -317,28 +323,218 @@ export class Player {
     this.root.position.set(x, y, z);
   }
 
-  // Déclenche l'attaque à l'épée avec cooldown de 0.5s anti-spam
+  // Déclenche l'attaque à l'épée avec cooldown anti-spam (plus rapide avec l'Épée Légendaire)
   attack() {
-    if (this.isDodgeRolling || this.attackCooldown > 0 || this.weapon.isSlashing) return false;
+    if (this.isPullingSword || this.isDodgeRolling || this.attackCooldown > 0 || this.weapon.isSlashing) return false;
 
     const started = this.weapon.startSlash();
     if (started) {
-      // 0.5s de cooldown strict entre les coups d'épée (durée frappe + 0.5s de pause)
-      this.attackCooldown = this.weapon.slashDuration + 0.5;
+      // Cooldown plus agile avec l'Épée Légendaire Bleue
+      const pause = this.hasLegendarySword ? 0.34 : 0.50;
+      this.attackCooldown = this.weapon.slashDuration + pause;
       this.audio.playSwordSwing();
 
       // Dépense une petite quantité de lumière si disponible
       if (this.lightGauge > 0.05) {
-        this.lightGauge = Math.max(0, this.lightGauge - 0.035);
+        const cost = this.hasLegendarySword ? 0.025 : 0.035;
+        this.lightGauge = Math.max(0, this.lightGauge - cost);
         this.audio.playSwordLightBurst();
       }
     }
     return started;
   }
 
+  /**
+   * Équipe définitivement l'Épée Légendaire Bleue (remplace l'ancienne épée).
+   * - Modèle bleu royal & traînée céleste
+   * - Plus puissante, plus maniable (coup d'épée en roulade)
+   * - Réserve de lumière doublée (maxLightGauge = 2.0)
+   * - Lumière plus puissante et constante dans le temps
+   */
+  equipLegendarySword(silent = false) {
+    this.hasLegendarySword = true;
+    this.maxLightGauge = 2.0;
+    this.lightGauge = this.maxLightGauge;
+
+    if (this.weapon) {
+      this.weapon.setLegendary(true);
+      this.weapon.root.setEnabled(true);
+    }
+    if (this.lighting) {
+      this.lighting.setLegendarySword(true);
+    }
+    if (this.ui) {
+      this.ui.setLegendarySwordUI(true);
+    }
+    if (!silent) {
+      this.audio.playSwordLightBurst();
+    }
+  }
+
+  resetToDefaultSword() {
+    this.hasLegendarySword = false;
+    this.maxLightGauge = 1.0;
+    this.lightGauge = 1.0;
+    this.isPullingSword = false;
+    this.pendingRollSlashHit = false;
+
+    if (this.weapon) {
+      this.weapon.setLegendary(false);
+      this.weapon.root.setEnabled(true);
+    }
+    if (this.lighting) {
+      this.lighting.setLegendarySword(false);
+    }
+    if (this.ui) {
+      this.ui.setLegendarySwordUI(false);
+    }
+  }
+
+  getLightGaugeRatio() {
+    return this.maxLightGauge > 0 ? Math.max(0, Math.min(1, this.lightGauge / this.maxLightGauge)) : 0;
+  }
+
+  /**
+   * Démarre l'animation dédiée d'extraction de l'Épée Légendaire du socle.
+   */
+  beginSwordPull() {
+    this.isPullingSword = true;
+    this.isDodgeRolling = false;
+    this.isKnockedBack = false;
+    this.isMoving = false;
+    this.isTorchMode = false;
+    if (this.weapon) {
+      this.weapon.isSlashing = false;
+      this.weapon.isRollSlashing = false;
+      if (this.weapon.trailMesh) this.weapon.trailMesh.setEnabled(false);
+      // Masque l'ancienne épée pendant que Zelya saisit celle du socle à deux mains
+      this.weapon.root.setEnabled(false);
+    }
+    if (this.rollNode) {
+      this.rollNode.position.set(0, 0, 0);
+      this.rollNode.rotation.set(0, 0, 0);
+    }
+  }
+
+  /**
+   * Met à jour la posture corporelle de Zelya pendant la séquence d'extraction ('GRIP' | 'STRUGGLE' | 'TRIUMPH').
+   */
+  updateSwordPullPose(phase, p, strain = 0) {
+    this.visualRoot.rotation.set(0, this.facingAngle, 0);
+    this.visualRoot.scaling.set(1, 1, 1);
+
+    if (phase === 'GRIP') {
+      // Zelya s'approche et tend les deux mains vers la poignée de l'épée dans le socle
+      this.visualRoot.position.set(0, 0, 0);
+      if (this.bodyMesh) {
+        this.bodyMesh.position.set(0, 0.82 - p * 0.04, p * 0.06);
+        this.bodyMesh.rotation.set(p * 0.16, 0, 0);
+      }
+      if (this.headMesh) {
+        this.headMesh.position.set(0, 1.48 - p * 0.04, p * 0.06);
+        this.headMesh.rotation.set(-p * 0.18, 0, 0);
+      }
+      if (this.armLRoot) {
+        this.armLRoot.position.set(-0.42 + p * 0.12, 1.05, p * 0.12);
+        this.armLRoot.rotation.set(-p * 1.95, p * 0.35, -p * 0.15);
+      }
+      if (this.armRRoot) {
+        this.armRRoot.position.set(0.42 - p * 0.12, 1.05, p * 0.12);
+        this.armRRoot.rotation.set(-p * 1.95, -p * 0.35, p * 0.15);
+      }
+      if (this.legLRoot) { this.legLRoot.rotation.set(p * 0.15, 0, 0); }
+      if (this.legRRoot) { this.legRRoot.rotation.set(-p * 0.15, 0, 0); }
+    } else if (phase === 'STRUGGLE') {
+      // Quelques secondes de galère : Zelya se penche en arrière, jambes fléchies, tremblant en tirant de toutes ses forces !
+      const tremble = Math.sin(p * 75.0) * 0.045 * strain;
+      const pullBack = 0.25 + strain * 0.42;
+
+      this.visualRoot.position.set(0, -0.08 - strain * 0.06, 0);
+      this.visualRoot.rotation.z = tremble * 1.4;
+
+      if (this.bodyMesh) {
+        this.bodyMesh.position.set(0, 0.78 - strain * 0.04, -pullBack * 0.16);
+        this.bodyMesh.rotation.set(-pullBack * 0.55, tremble * 1.6, tremble);
+      }
+      if (this.headMesh) {
+        this.headMesh.position.set(0, 1.44 - strain * 0.05, -pullBack * 0.22);
+        this.headMesh.rotation.set(-0.28 - strain * 0.26, tremble * 2.0, 0);
+      }
+      if (this.hairBack) {
+        this.hairBack.rotation.x = -0.25 - strain * 0.35;
+      }
+      // Les deux mains restent agrippées à la poignée et tirent vers le haut / arrière
+      const armLift = -2.05 - p * 0.38 - strain * 0.16;
+      if (this.armLRoot) {
+        this.armLRoot.position.set(-0.30, 1.03, 0.10 - pullBack * 0.08);
+        this.armLRoot.rotation.set(armLift, 0.38 + tremble, -0.16);
+      }
+      if (this.armRRoot) {
+        this.armRRoot.position.set(0.30, 1.03, 0.10 - pullBack * 0.08);
+        this.armRRoot.rotation.set(armLift, -0.38 - tremble, 0.16);
+      }
+      // Appui solide des jambes écartées/fléchies
+      if (this.legLRoot) {
+        this.legLRoot.position.set(-0.22, 0.40, 0.08);
+        this.legLRoot.rotation.set(-0.42 - strain * 0.14, 0, -0.10);
+      }
+      if (this.legRRoot) {
+        this.legRRoot.position.set(0.22, 0.40, -0.06);
+        this.legRRoot.rotation.set(0.36 + strain * 0.12, 0, 0.10);
+      }
+    } else if (phase === 'TRIUMPH') {
+      // Triomphe : Zelya brandit fièrement la nouvelle Épée Légendaire Bleue vers le ciel !
+      const ease = 1.0 - Math.pow(1.0 - p, 2.2);
+      this.visualRoot.position.set(0, Math.sin(Math.min(1, p * 2.0) * Math.PI) * 0.10, 0);
+      this.visualRoot.rotation.z = 0;
+
+      if (this.bodyMesh) {
+        this.bodyMesh.position.set(0, 0.82, 0);
+        this.bodyMesh.rotation.set(-0.08 * ease, 0, 0);
+      }
+      if (this.headMesh) {
+        this.headMesh.position.set(0, 1.48, 0);
+        this.headMesh.rotation.set(-0.22 * ease, 0, 0);
+      }
+      if (this.hairBack) {
+        this.hairBack.rotation.x = -0.15 * ease;
+      }
+      if (this.armRRoot) {
+        this.armRRoot.position.set(0.42, 1.05, 0);
+        this.armRRoot.rotation.set(-2.95 * ease, -0.10, 0.18 * ease);
+      }
+      if (this.armLRoot) {
+        this.armLRoot.position.set(-0.42, 1.05, 0);
+        this.armLRoot.rotation.set(0.15 * ease, 0, -0.35 * ease);
+      }
+      if (this.legLRoot) {
+        this.legLRoot.position.set(-0.18, 0.44, 0);
+        this.legLRoot.rotation.set(0, 0, 0);
+      }
+      if (this.legRRoot) {
+        this.legRRoot.position.set(0.18, 0.44, 0);
+        this.legRRoot.rotation.set(0, 0, 0);
+      }
+    }
+  }
+
+  endSwordPull() {
+    this.isPullingSword = false;
+    this.visualRoot.position.set(0, 0, 0);
+    this.visualRoot.rotation.set(0, this.facingAngle, 0);
+    if (this.bodyMesh) { this.bodyMesh.position.set(0, 0.82, 0); this.bodyMesh.rotation.set(0, 0, 0); }
+    if (this.headMesh) { this.headMesh.position.set(0, 1.48, 0); this.headMesh.rotation.set(0, 0, 0); }
+    if (this.hairBack) { this.hairBack.rotation.x = 0; }
+    if (this.legLRoot) { this.legLRoot.position.set(-0.18, 0.44, 0); this.legLRoot.rotation.set(0, 0, 0); }
+    if (this.legRRoot) { this.legRRoot.position.set(0.18, 0.44, 0); this.legRRoot.rotation.set(0, 0, 0); }
+    if (this.armLRoot) { this.armLRoot.position.set(-0.42, 1.05, 0); this.armLRoot.rotation.set(0, 0, 0); }
+    if (this.armRRoot) { this.armRRoot.position.set(0.42, 1.05, 0); this.armRRoot.rotation.set(-0.30, 0.10, 0.12); }
+    if (this.weapon) { this.weapon.root.setEnabled(true); }
+  }
+
   // Déclenche la roulade / esquive (K) avec cooldown strict de 0.75s entre les roulades
   dodge(moveVector) {
-    if (this.isDodgeRolling || this.dodgeCooldown > 0) return false;
+    if (this.isPullingSword || this.isDodgeRolling || this.dodgeCooldown > 0) return false;
 
     this.isDodgeRolling = true;
     this.dodgeTimer = this.dodgeDuration;
@@ -359,17 +555,43 @@ export class Player {
     if (this.rollNode) this.rollNode.rotation.y = this.facingAngle;
     this.visualRoot.rotation.y = 0;
 
-    // Particules de poussière au sol au démarrage de la roulade
+    // Avec l'Épée Légendaire Bleue (plus maniable), Zelya donne un coup d'épée acrobatique en même temps que la roulade !
+    if (this.hasLegendarySword && this.weapon) {
+      this.weapon.startRollSlash(this.dodgeDuration);
+      this.pendingRollSlashHit = true;
+      this.audio.playSwordSwing();
+    }
+
+    // Particules de poussière (teintées d'étincelles bleues avec l'Épée Légendaire) au démarrage de la roulade
     this.spawnRollDust();
 
     this.audio.playRoll();
     return true;
   }
 
-  // Particules de poussière rétro au départ d'une roulade
+  /**
+   * Consomme le déclencheur de frappe d'épée pendant la roulade (Épée Légendaire).
+   */
+  consumeRollSlashHit() {
+    if (!this.pendingRollSlashHit) return false;
+    // Déclenche l'impact dès que la lame balaie en pleine roulade
+    const progress = this.isDodgeRolling ? (1.0 - this.dodgeTimer / this.dodgeDuration) : 1.0;
+    if (progress >= 0.22) {
+      this.pendingRollSlashHit = false;
+      return true;
+    }
+    return false;
+  }
+
+  // Particules de poussière rétro au départ d'une roulade (étincelles bleues avec l'Épée Légendaire)
   spawnRollDust() {
     const dustMat = new StandardMaterial('mat_roll_dust', this.scene);
-    dustMat.diffuseColor = new Color3(0.72, 0.65, 0.52);
+    if (this.hasLegendarySword) {
+      dustMat.diffuseColor = new Color3(0.45, 0.88, 1.0);
+      dustMat.emissiveColor = new Color3(0.20, 0.65, 0.95);
+    } else {
+      dustMat.diffuseColor = new Color3(0.72, 0.65, 0.52);
+    }
     dustMat.specularColor = new Color3(0, 0, 0);
 
     const pos = this.root.position;
@@ -495,8 +717,10 @@ export class Player {
 
   reset(x = 0, y = 0, z = -4) {
     this.health = this.maxHealth;
-    this.lightGauge = 1.0;
+    this.lightGauge = this.maxLightGauge;
     this.isDodgeRolling = false;
+    this.isPullingSword = false;
+    this.pendingRollSlashHit = false;
     this.isKnockedBack = false;
     this.knockbackTimer = 0;
     this.isMoving = false;
@@ -527,6 +751,13 @@ export class Player {
   }
 
   update(input, dt) {
+    // 0. Pendant la cinématique d'extraction de l'Épée Légendaire, ForestManager pilote la posture
+    if (this.isPullingSword) {
+      const swordTip = this.weapon.getTipWorldPosition();
+      this.lighting.update(swordTip, this.getLightGaugeRatio(), true, false, dt);
+      return;
+    }
+
     // 1. Gestion des timers (cooldowns & invulnérabilité)
     if (this.dodgeCooldown > 0) this.dodgeCooldown -= dt;
     if (this.attackCooldown > 0) this.attackCooldown -= dt;
@@ -557,19 +788,20 @@ export class Player {
     // 2. Gestion de l'état Mode Torche
     this.isTorchMode = input.torchHeld && !this.isDodgeRolling;
 
-    // Gestion de la jauge de lumière selon la zone
+    // Gestion de la jauge de lumière selon la zone (réserve étendue jusqu'à maxLightGauge avec l'Épée Légendaire)
+    const rechargeRate = this.hasLegendarySword ? this.torchRechargeRate * 1.5 : this.torchRechargeRate;
     if (this.currentZone === 'cavern') {
       if (this.isTorchMode) {
         // Consommation en mode torche dans l'obscurité (plancher de sécurité à 0.08)
         this.lightGauge = Math.max(0.08, this.lightGauge - this.torchDrainRate * dt);
       } else if (this.root.position.x < 184) {
         // Rechargement près de l'ouverture lumineuse de sortie de la caverne
-        this.lightGauge = Math.min(1.0, this.lightGauge + this.torchRechargeRate * dt);
+        this.lightGauge = Math.min(this.maxLightGauge, this.lightGauge + rechargeRate * dt);
       }
     } else {
-      // Rechargement naturel au soleil dans la Plaine d'Éveil
+      // Rechargement naturel au soleil dans la Plaine d'Éveil et la Forêt Sacrée
       if (!this.isTorchMode) {
-        this.lightGauge = Math.min(1.0, this.lightGauge + this.torchRechargeRate * dt);
+        this.lightGauge = Math.min(this.maxLightGauge, this.lightGauge + rechargeRate * dt);
       } else {
         this.lightGauge = Math.max(0.05, this.lightGauge - this.torchDrainRate * dt);
       }
@@ -683,9 +915,19 @@ export class Player {
         this.armLRoot.rotation.z = -ball * 0.25;
       }
       if (this.armRRoot) {
-        this.armRRoot.position.set(0.42, 1.05 - ball * 0.32, ball * 0.12);
-        this.armRRoot.rotation.x = -ball * 2.1;
-        this.armRRoot.rotation.z = ball * 0.25;
+        if (this.hasLegendarySword) {
+          // Coup d'épée agile et tranchant intégré à la roulade avec l'Épée Légendaire Bleue !
+          const slashArc = Math.min(1.0, Math.max(0.0, (progress - 0.08) / 0.78));
+          const sweep = 1.0 - Math.pow(1.0 - slashArc, 2.0);
+          this.armRRoot.position.set(0.42, 1.05 - ball * 0.24, ball * 0.14);
+          this.armRRoot.rotation.x = -1.35 + sweep * 1.15;
+          this.armRRoot.rotation.y = 0.85 - sweep * 2.45;
+          this.armRRoot.rotation.z = 0.75 - sweep * 1.25;
+        } else {
+          this.armRRoot.position.set(0.42, 1.05 - ball * 0.32, ball * 0.12);
+          this.armRRoot.rotation.x = -ball * 2.1;
+          this.armRRoot.rotation.z = ball * 0.25;
+        }
       }
       if (this.bodyMesh) {
         this.bodyMesh.position.set(0, 0.82 - ball * 0.32, ball * 0.08);
@@ -1044,9 +1286,9 @@ export class Player {
     const swordTip = this.weapon.getTipWorldPosition();
     this.lighting.update(
       swordTip,
-      this.lightGauge,
+      this.getLightGaugeRatio(),
       this.isTorchMode,
-      this.weapon.isSlashing,
+      this.weapon.isSlashing || this.weapon.isRollSlashing,
       dt
     );
   }
