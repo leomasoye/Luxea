@@ -264,6 +264,48 @@ export class LevelManager {
     this.westGateMesh = gate;
     this.westGateMesh.setEnabled(!this.saveState.westGateOpen);
 
+    // Couloir boisé et brume émeraude derrière la grille Ouest (invite vers la Forêt Sacrée)
+    const forestTunMat = new StandardMaterial('mat_west_forest_tun', this.scene);
+    forestTunMat.diffuseColor = new Color3(0.08, 0.24, 0.14);
+    forestTunMat.specularColor = new Color3(0, 0, 0);
+    forestTunMat.freeze();
+
+    const forestGlowMat = new StandardMaterial('mat_west_forest_glow', this.scene);
+    forestGlowMat.diffuseColor = new Color3(0.24, 0.62, 0.38);
+    forestGlowMat.emissiveColor = new Color3(0.14, 0.42, 0.26);
+    forestGlowMat.specularColor = new Color3(0, 0, 0);
+    forestGlowMat.freeze();
+
+    const westThreshold = MeshBuilder.CreateGround('west_threshold_path', { width: 4.5, height: 2.8 }, this.scene);
+    westThreshold.material = forestTunMat;
+    westThreshold.position.set(-25.2, 0.02, 2.0);
+    westThreshold.parent = this.root;
+    westThreshold.freezeWorldMatrix();
+
+    const westTunN = MeshBuilder.CreateBox('west_tun_wall_n', { width: 3.5, height: 4.8, depth: 1.2 }, this.scene);
+    westTunN.material = forestTunMat;
+    westTunN.position.set(-25.8, 2.3, 3.7);
+    westTunN.parent = this.root;
+    westTunN.freezeWorldMatrix();
+
+    const westTunS = MeshBuilder.CreateBox('west_tun_wall_s', { width: 3.5, height: 4.8, depth: 1.2 }, this.scene);
+    westTunS.material = forestTunMat;
+    westTunS.position.set(-25.8, 2.3, 0.3);
+    westTunS.parent = this.root;
+    westTunS.freezeWorldMatrix();
+
+    const westTunCeil = MeshBuilder.CreateBox('west_tun_ceil', { width: 3.5, height: 1.2, depth: 3.6 }, this.scene);
+    westTunCeil.material = forestTunMat;
+    westTunCeil.position.set(-25.8, 4.4, 2.0);
+    westTunCeil.parent = this.root;
+    westTunCeil.freezeWorldMatrix();
+
+    const westPortalBack = MeshBuilder.CreateBox('west_forest_back', { width: 0.8, height: 4.4, depth: 2.8 }, this.scene);
+    westPortalBack.material = forestGlowMat;
+    westPortalBack.position.set(-27.0, 2.1, 2.0);
+    westPortalBack.parent = this.root;
+    westPortalBack.freezeWorldMatrix();
+
     // Déverrouillage de la grille Ouest avec la Clé simple trouvée dans la Caverne
     this.interactables.push({
       id: 'west_sanctuary',

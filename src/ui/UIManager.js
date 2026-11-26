@@ -259,8 +259,26 @@ export class UIManager {
 
     this.interactionPrompt.style.left = `${x}px`;
     this.interactionPrompt.style.top = `${y}px`;
-    this.interactionPrompt.textContent = promptText;
-    this.interactionPrompt.style.display = 'block';
+    if (this._lastPromptText !== promptText) {
+      this._lastPromptText = promptText;
+      const match = /^\[([^\]]+)\]\s*(.+)$/.exec(promptText.trim());
+      if (match) {
+        const key = match[1].toUpperCase();
+        const label = match[2]
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toUpperCase();
+        this.interactionPrompt.innerHTML =
+          `<span class="prompt-key">${key}</span><span class="prompt-label">${label}</span>`;
+      } else {
+        const label = promptText
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toUpperCase();
+        this.interactionPrompt.innerHTML = `<span class="prompt-label">${label}</span>`;
+      }
+    }
+    this.interactionPrompt.style.display = 'flex';
   }
 
   hideInteractionPrompt() {

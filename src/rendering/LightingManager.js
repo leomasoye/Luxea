@@ -107,9 +107,29 @@ export class LightingManager {
       this.torchSwordIntensity = 6.2;
       this.baseRange = 13.0;
       this.torchRange = 26.0;
+    } else if (zone === 'forest') {
+      // Ambiance féerique de la Forêt Sacrée (brume émeraude douce & rayons dorés)
+      if (this.sunLight) {
+        this.sunLight.intensity = 0.62;
+        this.sunLight.diffuse = new Color3(0.95, 0.92, 0.72);
+      }
+      if (this.ambientLight) {
+        this.ambientLight.intensity = 0.48;
+        this.ambientLight.diffuse = new Color3(0.45, 0.68, 0.52);
+        this.ambientLight.groundColor = new Color3(0.08, 0.16, 0.09);
+      }
+      this.scene.clearColor = new Color3(0.08, 0.17, 0.13).toColor4(1.0);
+      this.scene.fogColor = new Color3(0.08, 0.17, 0.13);
+      this.scene.fogDensity = 0.013;
+
+      this.baseSwordIntensity = 2.2;
+      this.torchSwordIntensity = 4.8;
+      this.baseRange = 9.5;
+      this.torchRange = 21.0;
     } else {
       if (this.sunLight) {
         this.sunLight.intensity = 0.35;
+        this.sunLight.diffuse = new Color3(0.48, 0.54, 0.70);
       }
       if (this.ambientLight) {
         this.ambientLight.intensity = 0.32;

@@ -208,23 +208,86 @@
       background-image: url('/assets/textures/ui/item-arrow.svg');
     }
 
-    /* Floating Projected Interaction Prompt */
+    /* Floating Projected Interaction Prompt — 16-Bit Retro Zelda/SNES Style */
     #interaction-prompt {
       position: absolute;
       transform: translate(-50%, -100%);
-      background: #080d17;
-      border: 3px solid #f0b429;
-      outline: 2px solid #000;
-      color: #ffe066;
-      padding: 5px 12px;
-      font-family: 'Triforce', monospace;
-      font-size: 14px;
-      letter-spacing: 1px;
-      pointer-events: none;
       display: none;
-      box-shadow: 4px 4px 0px #000;
+      align-items: center;
+      gap: 9px;
+      background: #142848;
+      border: 3px solid;
+      border-color: #63b3ed #0a1628 #0a1628 #63b3ed;
+      outline: 2px solid #000000;
+      box-shadow: inset 1px 1px 0 #90cdf4, inset -1px -1px 0 #0d1e33, 4px 4px 0px #000000;
+      border-radius: 0px;
+      padding: 6px 12px 6px 8px;
+      pointer-events: none;
       white-space: nowrap;
-      text-shadow: 2px 2px 0px #000;
+      z-index: 25;
+      animation: prompt-bob 0.9s infinite steps(2);
+    }
+
+    #interaction-prompt::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -9px;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 7px solid #000000;
+    }
+
+    #interaction-prompt::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -6px;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid #142848;
+      z-index: 1;
+    }
+
+    @keyframes prompt-bob {
+      0%, 100% { margin-top: 0px; }
+      50% { margin-top: -3px; }
+    }
+
+    .prompt-key {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      padding: 0 5px;
+      background: #f0b429;
+      border: 2px solid;
+      border-color: #fff3b0 #7a5814 #7a5814 #fff3b0;
+      outline: 2px solid #000000;
+      color: #0b0e14;
+      font-family: 'Courier New', monospace;
+      font-weight: 900;
+      font-size: 14px;
+      line-height: 1;
+      text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.35);
+      box-shadow: 2px 2px 0 #000000;
+    }
+
+    .prompt-label {
+      font-family: 'Triforce', monospace;
+      font-size: 15px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #ffe066;
+      text-shadow: 2px 2px 0 #000000;
+      line-height: 1;
     }
 
     /* Dialogue & Message Box - 16-Bit Retro RPG Frame */
@@ -726,7 +789,7 @@
           <span class="control-keys"><span class="key-badge">K</span></span>
         </div>
         <div class="control-row">
-          <span class="control-label">INTERACTION / PARLER</span>
+          <span class="control-label">INTERACTION</span>
           <span class="control-keys"><span class="key-badge">E</span></span>
         </div>
         <div class="control-row">

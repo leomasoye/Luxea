@@ -7,6 +7,7 @@ import { LightingManager } from '../rendering/LightingManager.js';
 import { EnvironmentManager } from '../world/EnvironmentManager.js';
 import { LevelManager } from '../world/LevelManager.js';
 import { CaveManager } from '../world/CaveManager.js';
+import { ForestManager } from '../world/ForestManager.js';
 import { CollisionManager } from '../world/CollisionManager.js';
 import { Player } from '../entities/Player.js';
 import { UIManager } from '../ui/UIManager.js';
@@ -52,14 +53,17 @@ export class GameManager {
     this.environment = new EnvironmentManager(this.scene);
     this.level = new LevelManager(this.scene, this.audio, this.saveData);
     this.cave = new CaveManager(this.scene, this.saveData);
+    this.forest = new ForestManager(this.scene);
 
-    // Initialisation des hitboxes (murs, falaises, arbres, buissons, panneau, portes, caverne)
+    // Initialisation des hitboxes (murs, falaises, arbres, buissons, panneau, portes, caverne, forêt)
     this.environment.initColliders(this.collision);
     this.level.initColliders(this.collision);
     this.cave.initColliders(this.collision);
+    this.forest.initColliders(this.collision);
 
-    // La caverne est désactivée par défaut au lancement (scène unique)
+    // La caverne et la forêt sont désactivées par défaut au lancement (scène unique)
     this.cave.setEnabled(false);
+    this.forest.setEnabled(false);
 
     this.player = new Player(this.scene, this.audio, this.lightingManager, this.cameraManager, this.collision);
     this.ui = new UIManager(this.scene);
@@ -243,10 +247,14 @@ export class GameManager {
   }
 
   respawnPlayer() {
-    if (this.currentZone === 'cavern') {
+    if (this.currentZone === 'cavern' || this.currentZone === 'forest') {
       // Retour complet à la Plaine d'Éveil (conforme au libellé « Réapparaître dans la Plaine »)
-      this.cave.resetEnemies();
-      this.cave.setEnabled(false);
+      if (this.currentZone === 'cavern') {
+        this.cave.resetEnemies();
+        this.cave.setEnabled(false);
+      } else if (this.currentZone === 'forest') {
+        this.forest.setEnabled(false);
+      }
       this.environment.root.setEnabled(true);
       this.level.root.setEnabled(true);
 
@@ -297,10 +305,12 @@ export class GameManager {
     await this.ui.fadeToBlack(380);
 
     // 2. Bascule instantanée des zones, colliders et lumières sous l'écran noir
+    const prevZone = this.currentZone;
     if (targetZone === 'cavern') {
       this.currentZone = 'cavern';
       this.environment.root.setEnabled(false);
       this.level.root.setEnabled(false);
+      this.forest.setEnabled(false);
       this.cave.setEnabled(true);
 
       this.collision.setZone('cavern');
@@ -313,7 +323,6 @@ export class GameManager {
       this.player.setGroundHeightProvider((x, z) => this.cave.getGroundHeight(x, z));
 
       // Téléportation à l'entrée Ouest de la caverne, face vers l'intérieur (Est)
-      // Cadrage 3/4 immersif tourné vers la salle au lieu d'être collé au mur de dos
       this.player.reset(185.0, 0, 0);
       this.player.facingAngle = Math.PI / 2;
       this.player.targetFacingAngle = Math.PI / 2;
@@ -321,9 +330,34 @@ export class GameManager {
       this.player.visualRoot.rotation.y = Math.PI / 2;
 
       this.cameraManager.snapTo(new Vector3(185.0, 1.2, 0), -Math.PI * 0.78, 8.5);
+    } else if (targetZone === 'forest') {
+      this.currentZone = 'forest';
+      this.environment.root.setEnabled(false);
+      this.level.root.setEnabled(false);
+      this.cave.setEnabled(false);
+      this.forest.setEnabled(true);
+
+      this.collision.setZone('forest');
+      this.lightingManager.setZone('forest');
+
+      const forestBounds = this.forest.getBounds();
+      this.player.setBounds(forestBounds.player);
+      this.cameraManager.setBounds(forestBounds.camera);
+      this.player.setZone('forest');
+      this.player.setGroundHeightProvider((x, z) => this.forest.getGroundHeight(x, z));
+
+      // Téléportation à l'entrée Est de la Forêt Sacrée, face vers l'Arbre Sacré (Ouest)
+      this.player.reset(-184.5, 0, 0);
+      this.player.facingAngle = -Math.PI / 2;
+      this.player.targetFacingAngle = -Math.PI / 2;
+      if (this.player.rollNode) this.player.rollNode.rotation.y = -Math.PI / 2;
+      this.player.visualRoot.rotation.y = -Math.PI / 2;
+
+      this.cameraManager.snapTo(new Vector3(-184.5, 1.2, 0), -Math.PI * 0.08, 10.5);
     } else {
       this.currentZone = 'plaine';
       this.cave.setEnabled(false);
+      this.forest.setEnabled(false);
       this.environment.root.setEnabled(true);
       this.level.root.setEnabled(true);
 
@@ -336,15 +370,25 @@ export class GameManager {
       this.player.setGroundHeightProvider(null);
       this.player.root.position.y = 0;
 
-      // Téléportation devant l'arche sur la Plaine, face vers l'Ouest (en sortant)
-      // Cadrage ouvert sur le sentier et la plaine ensoleillée sans être dans la falaise
-      this.player.reset(21.2, 0, 2.0);
-      this.player.facingAngle = -Math.PI / 2;
-      this.player.targetFacingAngle = -Math.PI / 2;
-      if (this.player.rollNode) this.player.rollNode.rotation.y = -Math.PI / 2;
-      this.player.visualRoot.rotation.y = -Math.PI / 2;
+      if (prevZone === 'forest') {
+        // Retour depuis la Forêt Sacrée : apparition devant l'arche Ouest, face vers la plaine (Est)
+        this.player.reset(-21.2, 0, 2.0);
+        this.player.facingAngle = Math.PI / 2;
+        this.player.targetFacingAngle = Math.PI / 2;
+        if (this.player.rollNode) this.player.rollNode.rotation.y = Math.PI / 2;
+        this.player.visualRoot.rotation.y = Math.PI / 2;
 
-      this.cameraManager.snapTo(new Vector3(21.2, 1.2, 2.0), -Math.PI * 0.45, 9.5);
+        this.cameraManager.snapTo(new Vector3(-21.2, 1.2, 2.0), -Math.PI * 0.55, 9.5);
+      } else {
+        // Retour depuis la Caverne : apparition devant l'arche Est, face vers la plaine (Ouest)
+        this.player.reset(21.2, 0, 2.0);
+        this.player.facingAngle = -Math.PI / 2;
+        this.player.targetFacingAngle = -Math.PI / 2;
+        if (this.player.rollNode) this.player.rollNode.rotation.y = -Math.PI / 2;
+        this.player.visualRoot.rotation.y = -Math.PI / 2;
+
+        this.cameraManager.snapTo(new Vector3(21.2, 1.2, 2.0), -Math.PI * 0.45, 9.5);
+      }
     }
 
     // Stabilisation technique de la première frame de rendu
@@ -422,9 +466,20 @@ export class GameManager {
           this.switchZone('cavern');
           return;
         }
+        // Seuil d'entrée de la Forêt Sacrée à l'Ouest (une fois la grille ouverte)
+        if (this.saveData.westGateOpen && pPos.x <= -24.5 && pPos.z >= 0.8 && pPos.z <= 3.2) {
+          this.switchZone('forest');
+          return;
+        }
       } else if (this.currentZone === 'cavern') {
         // Seuil de sortie de la Caverne à l'Ouest (X <= 181.2, Z entre -2.4 et 2.4)
         if (pPos.x <= 181.2 && pPos.z >= -2.4 && pPos.z <= 2.4) {
+          this.switchZone('plaine');
+          return;
+        }
+      } else if (this.currentZone === 'forest') {
+        // Seuil de sortie de la Forêt Sacrée à l'Est (X >= -181.2, Z entre -2.6 et 2.6)
+        if (pPos.x >= -181.2 && pPos.z >= -2.6 && pPos.z <= 2.6) {
           this.switchZone('plaine');
           return;
         }
@@ -481,6 +536,8 @@ export class GameManager {
       this.level.update(dt, this.player);
     } else if (this.currentZone === 'cavern') {
       this.cave.update(dt, this.player, this.cameraManager, this.audio, this.collision);
+    } else if (this.currentZone === 'forest') {
+      this.forest.update(dt);
     }
 
     // G. Mise à jour de la caméra intelligente semi-contrainte
@@ -499,7 +556,9 @@ export class GameManager {
     // H. Détection des interactions environnementales (Coffre, Grille Ouest)
     const nearest = this.currentZone === 'plaine'
       ? this.level.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
-      : this.cave.getNearestInteractable(this.player.getPosition(), this.player.facingAngle);
+      : this.currentZone === 'cavern'
+        ? this.cave.getNearestInteractable(this.player.getPosition(), this.player.facingAngle)
+        : null;
 
     if (nearest) {
       this.ui.updateInteractionPrompt(nearest.position, nearest.promptText);
